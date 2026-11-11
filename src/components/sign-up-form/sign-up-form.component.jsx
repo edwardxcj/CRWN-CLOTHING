@@ -4,6 +4,7 @@ import FormInput from "../form-input/form-input.component";
 import {
   createAuthUserWithEmailAndPassword,
   createUserDocumentFromAuth,
+  updateUserProfile,
 } from "../../utils/firebase/firebase.utils";
 
 const defaultFormFields = {
@@ -42,9 +43,9 @@ const SignUpForm = ({ pending, setPending, onProfileError }) => {
 
     try {
       const { user } = await createAuthUserWithEmailAndPassword(email.trim(), password);
-      await createUserDocumentFromAuth(user, {
-        displayName: displayName.trim(),
-      }).catch(onProfileError);
+      const name = displayName.trim();
+      await updateUserProfile(user, { displayName: name }).catch(onProfileError);
+      createUserDocumentFromAuth(user, { displayName: name }).catch(() => {});
       setFormFields(defaultFormFields);
     } catch (signUpError) {
       setError(accountErrors[signUpError.code] || "We couldn't create your account. Please try again.");

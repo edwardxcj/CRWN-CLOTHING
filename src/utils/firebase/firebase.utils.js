@@ -8,6 +8,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  updateProfile,
 } from "firebase/auth";
 
 import {
@@ -108,6 +109,18 @@ export const createAuthUserWithEmailAndPassword = async (email, password) => {
   if (!email || !password) return;
 
   return await createUserWithEmailAndPassword(auth, email, password);
+};
+
+export const getStoredDisplayName = async (uid) => {
+  const snapshot = await getDoc(doc(db, "users", uid));
+  const name = snapshot.data()?.displayName;
+  return typeof name === "string" ? name.trim() : "";
+};
+
+export const updateUserProfile = (user, profile) => {
+  const changes = { ...profile };
+  if (changes.photoURL === null) changes.photoURL = "";
+  return updateProfile(user, changes);
 };
 
 export const signInAuthUserWithEmailAndPassword = async (email, password) => {
