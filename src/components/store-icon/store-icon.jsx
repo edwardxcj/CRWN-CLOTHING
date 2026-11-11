@@ -6,6 +6,8 @@ const paths = {
   bag: <><path d="M5 8h14l1.1 13H3.9L5 8Z" /><path d="M9 9V6a3 3 0 0 1 6 0v3" /></>,
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   close: <path d="m6 6 12 12M18 6 6 18" />,
+  card: <><rect x="3" y="5.5" width="18" height="13" rx="2" /><path d="M3 10h18M6 15h4" /></>,
+  check: <path d="m5 12 4 4L19 6" />,
   crown: <><path d="m3 7 5 4 4-7 4 7 5-4-2 10H5L3 7ZM6 20h12" /></>,
 };
 

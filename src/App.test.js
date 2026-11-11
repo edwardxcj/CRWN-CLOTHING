@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import App from "./App";
+import { CartProvider } from "./contexts/cart.context";
 
 jest.mock("./utils/firebase/firebase.utils", () => ({
   getCategoriesAndDocuments: jest.fn(),
@@ -21,7 +22,7 @@ const openStore = (url) => render(
     initialEntries={[url]}
     future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
   >
-    <App />
+    <CartProvider><App /></CartProvider>
   </MemoryRouter>
 );
 
@@ -45,4 +46,23 @@ test("sorting an existing category keeps the selected collection", () => {
   expect(screen.getByText("5 products")).toBeInTheDocument();
   const products = screen.getAllByRole("article");
   expect(within(products[0]).getByRole("link", { name: /Tan Trench/ })).toBeInTheDocument();
+});
+
+test("demo payment confirms the bag total and clears the saved bag", () => {
+  const key = "crwn-shopping-bag";
+  window.localStorage.setItem(key, JSON.stringify([
+    { id: 12, name: "Black Converse", price: 110, quantity: 2 },
+  ]));
+
+  const { unmount } = openStore("/checkout");
+  fireEvent.click(screen.getByRole("button", { name: "Simulate payment" }));
+
+  expect(screen.getByRole("heading", { name: "Demo payment successful" })).toHaveFocus();
+  expect(screen.getByText(/\$220\.00/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Shopping bag, 0 items" })).toBeInTheDocument();
+
+  unmount();
+  openStore("/checkout");
+  expect(screen.getByRole("heading", { name: "Your bag is empty" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Simulate payment" })).not.toBeInTheDocument();
 });

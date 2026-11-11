@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { CartContext } from "../../contexts/cart.context";
@@ -9,31 +9,51 @@ import StoreIcon from "../../components/store-icon/store-icon";
 import "./checkout.styles.scss";
 
 const Checkout = () => {
-  const { cartItems, cartCount, cartTotal } = useContext(CartContext);
+  const { cartItems, cartCount, cartTotal, clearCart } = useContext(CartContext);
+  const [receipt, setReceipt] = useState(null);
   const headingRef = useRef(null);
   const previousLength = useRef(cartItems.length);
 
   useEffect(() => {
     if (
-      cartItems.length < previousLength.current &&
-      document.activeElement === document.body
+      receipt ||
+      (cartItems.length < previousLength.current &&
+        document.activeElement === document.body)
     ) {
       headingRef.current.focus();
     }
     previousLength.current = cartItems.length;
-  }, [cartItems.length]);
+  }, [cartItems.length, receipt]);
+
+  const simulatePayment = () => {
+    if (cartCount === 0 || receipt) return;
+    setReceipt({ count: cartCount, total: cartTotal });
+    clearCart();
+  };
 
   return (
     <section className="checkout container" aria-labelledby="checkout-title">
       <nav className="checkout__breadcrumbs" aria-label="Breadcrumb">
         <Link to="/shop">Shop</Link>
         <span aria-hidden="true">/</span>
-        <span aria-current="page">Shopping bag</span>
+        <span aria-current="page">{receipt ? "Confirmation" : "Shopping bag"}</span>
       </nav>
       <h1 id="checkout-title" ref={headingRef} tabIndex={-1}>
-        Shopping bag
+        {receipt ? "Demo payment successful" : "Shopping bag"}
       </h1>
-      {cartItems.length > 0 ? (
+      {receipt ? (
+        <div className="checkout__receipt">
+          <div className="checkout__receipt-icon"><StoreIcon name="check" size={24} /></div>
+          <p>Your demo order is complete. No money was charged.</p>
+          <div className="checkout__subtotal">
+            <span>{receipt.count} {receipt.count === 1 ? "item" : "items"}</span>
+            <strong>{formatPrice(receipt.total)} <small>USD</small></strong>
+          </div>
+          <Link className="store-button" to="/shop">
+            Continue shopping <StoreIcon name="arrow" size={17} />
+          </Link>
+        </div>
+      ) : cartItems.length > 0 ? (
         <div className="checkout__layout">
           <section aria-labelledby="checkout-items">
             <h2 id="checkout-items" className="checkout__items-heading">
@@ -51,10 +71,16 @@ const Checkout = () => {
               <span>Subtotal <small>USD</small></span>
               <strong aria-live="polite">{formatPrice(cartTotal)}</strong>
             </div>
-            <p>Online payment isn’t available yet.</p>
-            <Link className="store-button store-button--outline" to="/shop">
-              Continue shopping <StoreIcon name="arrow" size={17} />
-            </Link>
+            <div className="checkout__method">
+              <StoreIcon name="card" size={22} />
+              <div>
+                <strong>Test card ···· 4242</strong>
+                <p>Demo payment only. No charge will be made.</p>
+              </div>
+            </div>
+            <button className="store-button" type="button" onClick={simulatePayment}>
+              Simulate payment <StoreIcon name="arrow" size={17} />
+            </button>
           </aside>
         </div>
       ) : (
