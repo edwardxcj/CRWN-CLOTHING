@@ -1,5 +1,27 @@
 import { createContext, useState, useEffect } from "react";
 
+const STORAGE_KEY = "crwn-shopping-bag";
+
+const readCartItems = () => {
+  try {
+    const items = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]");
+    if (!Array.isArray(items)) return [];
+
+    return items.filter(
+      (item) =>
+        item &&
+        (typeof item.id === "number" || typeof item.id === "string") &&
+        typeof item.name === "string" &&
+        Number.isFinite(item.price) &&
+        item.price >= 0 &&
+        Number.isSafeInteger(item.quantity) &&
+        item.quantity > 0
+    );
+  } catch {
+    return [];
+  }
+};
+
 const addCartItem = (cartItems, productToAdd) => {
   const existingCartItem = cartItems.find(
     (cartItem) => cartItem.id === productToAdd.id
@@ -8,7 +30,7 @@ const addCartItem = (cartItems, productToAdd) => {
   if (existingCartItem) {
     return cartItems.map((cartItem) =>
       cartItem.id === productToAdd.id
-        ? { ...cartItem, quantity: cartItem.quantity + 1 }
+        ? { ...cartItem, ...productToAdd, quantity: cartItem.quantity + 1 }
         : cartItem
     );
   }
@@ -20,6 +42,8 @@ const removeCartItem = (cartItems, cartItemToRemove) => {
   const existingCartItem = cartItems.find(
     (cartItem) => cartItem.id === cartItemToRemove.id
   );
+
+  if (!existingCartItem) return cartItems;
 
   if (existingCartItem.quantity === 1) {
     return cartItems.filter((cartItem) => cartItem.id !== cartItemToRemove.id);
@@ -48,43 +72,40 @@ export const CartContext = createContext({
 
 export const CartProvider = ({ children }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [cartItems, setCartItems] = useState([]);
-  const [cartCount, setCartCount] = useState(0);
-  const [cartTotal, setCartTotal] = useState(0);
+  const [cartItems, setCartItems] = useState(readCartItems);
 
   useEffect(() => {
-    const newCartCount = cartItems.reduce(
-      (total, cartItem) => total + cartItem.quantity,
-      0
-    );
-    setCartCount(newCartCount);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cartItems));
+    } catch {
+      // The bag still works for this visit if storage is unavailable.
+    }
   }, [cartItems]);
 
-  useEffect(() => {
-    const newCartTotal = cartItems.reduce(
-      (total, cartItem) => total + cartItem.quantity * cartItem.price,
-      0
-    );
-    setCartTotal(newCartTotal);
-  }, [cartItems]);
-
-  const addItemToCart = (productToAdd) => {
-    setCartItems(addCartItem(cartItems, productToAdd));
+  const addItemToCart = (productToAdd, { openDrawer = true } = {}) => {
+    setCartItems((items) => addCartItem(items, productToAdd));
+    if (openDrawer) setIsCartOpen(true);
   };
 
-  const removeItemToCart = (cartItemToRemove) => {
-    setCartItems(removeCartItem(cartItems, cartItemToRemove));
+  const removeItemFromCart = (cartItemToRemove) => {
+    setCartItems((items) => removeCartItem(items, cartItemToRemove));
   };
 
   const clearItemFromCart = (cartItemToClear) => {
-    setCartItems(clearCartItem(cartItems, cartItemToClear));
+    setCartItems((items) => clearCartItem(items, cartItemToClear));
   };
+
+  const cartCount = cartItems.reduce((count, item) => count + item.quantity, 0);
+  const cartTotal = cartItems.reduce(
+    (total, item) => total + item.quantity * item.price,
+    0
+  );
 
   const value = {
     isCartOpen,
     setIsCartOpen,
     addItemToCart,
-    removeItemToCart,
+    removeItemFromCart,
     clearItemFromCart,
     cartItems,
     cartCount,

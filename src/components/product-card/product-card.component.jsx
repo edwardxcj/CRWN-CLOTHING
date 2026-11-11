@@ -1,30 +1,67 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
+import { Link } from "react-router-dom";
 
-import Button, { BUTTON_TYPE_CLASSES } from "../button/button.component";
 import { CartContext } from "../../contexts/cart.context";
+import { catalogImage } from "../../utils/catalog/catalog-image";
+import { categoryLabel, formatPrice, productPath } from "../../utils/catalog/catalog.utils";
 
 import "./product-card.styles.scss";
 
-const ProductCard = ({ product }) => {
-  const { name, price, imageUrl } = product;
-  const { addItemToCart } = useContext(CartContext);
+export const CatalogImage = ({
+  product,
+  alt = product.name,
+  className,
+  loading = "lazy",
+}) => {
+  const src = catalogImage(product.imageUrl);
+  const [failedSrc, setFailedSrc] = useState(null);
 
-  const addProductToCart = () => addItemToCart(product);
+  if (!src || failedSrc === src) {
+    return (
+      <div className={`catalog-image-placeholder ${className ?? ""}`} aria-hidden={!alt}>
+        Image unavailable
+      </div>
+    );
+  }
 
   return (
-    <div className="product-card-container">
-      <img src={imageUrl} alt={`${name}`} />
-      <div className="footer">
-        <span className="name">{name}</span>
-        <span className="price">{price}</span>
-      </div>
-      <Button
-        buttonType={BUTTON_TYPE_CLASSES.inverted}
-        onClick={addProductToCart}
+    <img
+      className={className}
+      src={src}
+      alt={alt}
+      loading={loading}
+      decoding="async"
+      onError={() => setFailedSrc(src)}
+    />
+  );
+};
+
+const ProductCard = ({ product, category = product.category }) => {
+  const { name, price } = product;
+  const { addItemToCart } = useContext(CartContext);
+
+  return (
+    <article className="product-card">
+      <Link className="product-card__link" to={productPath(product)}>
+        <div className="product-card__media">
+          <CatalogImage product={product} alt="" className="product-card__image" />
+        </div>
+        {category && <span className="product-card__category">{categoryLabel(category)}</span>}
+        <div className="product-card__info">
+          <span className="product-card__name">{name}</span>
+          <span className="product-card__price">{formatPrice(price)}</span>
+        </div>
+      </Link>
+      <button
+        className="product-card__add"
+        type="button"
+        aria-label={`Add to bag, ${name}`}
+        onClick={() => addItemToCart(product)}
       >
-        Add to card
-      </Button>
-    </div>
+        <span className="product-card__plus" aria-hidden="true" />
+        Add to bag
+      </button>
+    </article>
   );
 };
 

@@ -1,14 +1,15 @@
-.sign-in-container {
+.account-separator {
   display: flex;
-  flex-direction: column;
-  width: 380px;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
 
-  h2 {
-    margin: 10px 0;
-  }
-
-  .buttons-container {
-    display: flex;
-    justify-content: space-between;
-  }
+.account-separator::before,
+.account-separator::after {
+  height: 1px;
+  flex: 1;
+  background: var(--line);
+  content: "";
 }

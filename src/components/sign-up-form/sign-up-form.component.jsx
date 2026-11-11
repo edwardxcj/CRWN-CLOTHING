@@ -1,14 +1,10 @@
 import { useState } from "react";
 
 import FormInput from "../form-input/form-input.component";
-import Button from "../button/button.component";
-
 import {
   createAuthUserWithEmailAndPassword,
   createUserDocumentFromAuth,
 } from "../../utils/firebase/firebase.utils";
-
-import "./sign-up-form.styles.scss";
 
 const defaultFormFields = {
   displayName: "",
@@ -17,88 +13,111 @@ const defaultFormFields = {
   confirmPassword: "",
 };
 
-const SignUpForm = () => {
-  const [formFields, setFormFields] = useState(defaultFormFields);
-  const { displayName, email, password, confirmPassword } = formFields;
+const accountErrors = {
+  "auth/email-already-in-use": "An account already exists for this email. Switch to sign in.",
+  "auth/weak-password": "Choose a stronger password with at least 6 characters.",
+  "auth/password-does-not-meet-requirements": "That password doesn't meet the account requirements.",
+  "auth/too-many-requests": "Too many attempts. Please wait a moment and try again.",
+  "auth/network-request-failed": "We couldn't connect. Check your connection and try again.",
+};
 
-  const resetFormFields = () => {
-    setFormFields(defaultFormFields);
-  };
+const SignUpForm = ({ pending, setPending, onProfileError }) => {
+  const [formFields, setFormFields] = useState(defaultFormFields);
+  const [error, setError] = useState("");
+  const [passwordMismatch, setPasswordMismatch] = useState(false);
+  const { displayName, email, password, confirmPassword } = formFields;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (pending) return;
 
     if (password !== confirmPassword) {
-      alert("password do not match");
+      setError("");
+      setPasswordMismatch(true);
       return;
     }
 
-    try {
-      const { user } = await createAuthUserWithEmailAndPassword(
-        email,
-        password
-      );
+    setPending("create-account");
+    setError("");
 
-      await createUserDocumentFromAuth(user, { displayName });
-      resetFormFields();
-    } catch (error) {
-      if (error.code === "auth/email-already-in-use") {
-        alert("Cannot create user, email already in use");
-      } else {
-        console.log("user creation encountered an error", error);
-      }
+    try {
+      const { user } = await createAuthUserWithEmailAndPassword(email.trim(), password);
+      await createUserDocumentFromAuth(user, {
+        displayName: displayName.trim(),
+      }).catch(onProfileError);
+      setFormFields(defaultFormFields);
+    } catch (signUpError) {
+      setError(accountErrors[signUpError.code] || "We couldn't create your account. Please try again.");
+    } finally {
+      setPending(null);
     }
   };
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-
-    setFormFields({ ...formFields, [name]: value });
+    setFormFields((fields) => ({ ...fields, [name]: value }));
+    if (name === "password" || name === "confirmPassword") setPasswordMismatch(false);
   };
 
   return (
-    <div className="sign-up-container">
-      <h2>Don't have an account?</h2>
-      <span>Sign up with your email and password</span>
-      <form onSubmit={handleSubmit}>
-        <FormInput
-          label="Display Name"
-          type="text"
-          required
-          onChange={handleChange}
-          name="displayName"
-          value={displayName}
-        />
+    <form className="account-form" onSubmit={handleSubmit} aria-busy={Boolean(pending)}>
+      <FormInput
+        label="Name"
+        type="text"
+        autoComplete="name"
+        required
+        pattern=".*\S.*"
+        onChange={handleChange}
+        name="displayName"
+        value={displayName}
+      />
+      <FormInput
+        label="Email address"
+        type="email"
+        autoComplete="email"
+        required
+        onChange={handleChange}
+        name="email"
+        value={email}
+      />
+      <FormInput
+        label="Password (at least 6 characters)"
+        type="password"
+        autoComplete="new-password"
+        required
+        minLength={6}
+        onChange={handleChange}
+        name="password"
+        value={password}
+      />
+      <FormInput
+        label="Confirm password"
+        type="password"
+        autoComplete="new-password"
+        required
+        aria-invalid={passwordMismatch || undefined}
+        aria-describedby={passwordMismatch ? "account-password-error" : undefined}
+        onChange={handleChange}
+        name="confirmPassword"
+        value={confirmPassword}
+      />
 
-        <FormInput
-          label="Email"
-          type="email"
-          required
-          onChange={handleChange}
-          name="email"
-          value={email}
-        />
+      {passwordMismatch && (
+        <p className="account-form-error" id="account-password-error" role="alert">
+          The passwords don't match.
+        </p>
+      )}
 
-        <FormInput
-          label="Password"
-          type="password"
-          required
-          onChange={handleChange}
-          name="password"
-          value={password}
-        />
+      {error && (
+        <p className="account-form-error" role="alert">
+          {error}
+        </p>
+      )}
 
-        <FormInput
-          label="Confirm Password"
-          type="password"
-          required
-          onChange={handleChange}
-          name="confirmPassword"
-          value={confirmPassword}
-        />
-        <Button type="submit">Sign Up</Button>
-      </form>
-    </div>
+      <button className="account-action" type="submit" disabled={Boolean(pending)}>
+        {pending ? "Creating account…" : "Create account"}
+      </button>
+    </form>
   );
 };
 
