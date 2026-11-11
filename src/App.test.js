@@ -3,9 +3,18 @@ import { MemoryRouter } from "react-router-dom";
 
 import App from "./App";
 import { CartProvider } from "./contexts/cart.context";
+import { UserProvider } from "./contexts/user.context";
+import {
+  createUserDocumentFromAuth,
+  onAuthStateChangedListener,
+  updateUserProfile,
+} from "./utils/firebase/firebase.utils";
 
 jest.mock("./utils/firebase/firebase.utils", () => ({
   getCategoriesAndDocuments: jest.fn(),
+  createUserDocumentFromAuth: jest.fn(),
+  onAuthStateChangedListener: jest.fn(),
+  updateUserProfile: jest.fn(),
   signOutUser: jest.fn(),
 }));
 
@@ -17,12 +26,12 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-const openStore = (url) => render(
+const openStore = (url, app = <App />) => render(
   <MemoryRouter
     initialEntries={[url]}
     future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
   >
-    <CartProvider><App /></CartProvider>
+    <CartProvider>{app}</CartProvider>
   </MemoryRouter>
 );
 
@@ -65,4 +74,39 @@ test("demo payment confirms the bag total and clears the saved bag", () => {
   openStore("/checkout");
   expect(screen.getByRole("heading", { name: "Your bag is empty" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Simulate payment" })).not.toBeInTheDocument();
+});
+
+test("a signed-in customer can save their profile without changing their login email", async () => {
+  const user = {
+    uid: "customer-1",
+    displayName: "Alex",
+    email: "alex@example.test",
+    photoURL: "https://example.test/old-avatar.jpg",
+    providerData: [{ providerId: "google.com" }],
+  };
+  createUserDocumentFromAuth.mockResolvedValue(undefined);
+  onAuthStateChangedListener.mockImplementation((listener) => {
+    listener(user);
+    return () => {};
+  });
+  updateUserProfile
+    .mockRejectedValueOnce(new Error("Connection interrupted"))
+    .mockImplementation(async (currentUser, changes) => {
+      Object.assign(currentUser, changes);
+    });
+
+  openStore("/auth", <UserProvider><App /></UserProvider>);
+  fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
+  fireEvent.change(screen.getByLabelText("Display name"), { target: { value: " Alex Lee " } });
+  fireEvent.change(screen.getByLabelText(/Profile photo link/), { target: { value: "" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("We couldn’t save your profile.");
+  expect(screen.getByLabelText("Display name")).toHaveValue(" Alex Lee ");
+  fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+  expect(await screen.findByText("Profile updated.")).toBeInTheDocument();
+  expect(updateUserProfile).toHaveBeenCalledWith(user, { displayName: "Alex Lee", photoURL: null });
+  expect(screen.getAllByText("Alex Lee").length).toBeGreaterThan(0);
+  expect(screen.getByText("alex@example.test")).toBeInTheDocument();
 });
