@@ -1,39 +1,64 @@
 import { useContext } from "react";
+import { Link } from "react-router-dom";
 
 import { CartContext } from "../../contexts/cart.context";
+import { formatPrice, productPath } from "../../utils/catalog/catalog.utils";
+import { CatalogImage } from "../product-card/product-card.component";
 
 import "./checkout-item.styles.scss";
 
-const CheckoutItem = ({ cartItem }) => {
-  const { name, imageUrl, price, quantity } = cartItem;
-
-  const { clearItemFromCart, addItemToCart, removeItemToCart } =
+const CheckoutItem = ({ cartItem, compact = false, onNavigate }) => {
+  const { name, price, quantity } = cartItem;
+  const { addItemToCart, removeItemFromCart, clearItemFromCart } =
     useContext(CartContext);
 
-  const clearItemHandler = () => clearItemFromCart(cartItem);
-  const addItemHandler = () => addItemToCart(cartItem);
-  const removeItemHandler = () => removeItemToCart(cartItem);
-
   return (
-    <div className="checkout-item-container">
-      <div className="image-container">
-        <img src={imageUrl} alt={`${name}`} />
+    <li className={compact ? "bag-line bag-line--compact" : "bag-line"}>
+      <div className="bag-line__photo">
+        <CatalogImage product={cartItem} alt="" />
       </div>
-      <span className="name">{name}</span>
-      <span className="quantity">
-        <div className="arrow" onClick={removeItemHandler}>
-          &#10094;
+      <div className="bag-line__description">
+        <Link to={productPath(cartItem)} onClick={onNavigate}>
+          {name}
+        </Link>
+        <span className="bag-line__unit-price">{formatPrice(price)} each</span>
+      </div>
+      <div className="bag-line__controls">
+        <div
+          className="bag-line__quantity"
+          role="group"
+          aria-label={`Quantity for ${name}`}
+        >
+          <button
+            type="button"
+            aria-label={`Decrease quantity for ${name}`}
+            onClick={() => removeItemFromCart(cartItem)}
+          >
+            −
+          </button>
+          <span aria-live="polite">{quantity}</span>
+          <button
+            type="button"
+            aria-label={`Increase quantity for ${name}`}
+            onClick={() => addItemToCart(cartItem, { openDrawer: false })}
+          >
+            +
+          </button>
         </div>
-        <span className="value">{quantity}</span>
-        <div className="arrow" onClick={addItemHandler}>
-          &#10095;
-        </div>
+        <button
+          type="button"
+          className="bag-line__remove"
+          aria-label={`Remove ${name} from bag`}
+          onClick={() => clearItemFromCart(cartItem)}
+        >
+          Remove
+        </button>
+      </div>
+      <span className="bag-line__total">
+        <span className="sr-only">Line total: </span>
+        {formatPrice(price * quantity)}
       </span>
-      <span className="price">{price}</span>
-      <div className="remove-button" onClick={clearItemHandler}>
-        &#10005;
-      </div>
-    </div>
+    </li>
   );
 };
 

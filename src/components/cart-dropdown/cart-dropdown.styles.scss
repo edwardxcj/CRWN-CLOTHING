@@ -1,0 +1,128 @@
+body:has(.bag-drawer[open]) {
+  overflow: hidden;
+}
+
+.bag-drawer {
+  position: fixed;
+  inset: 0 0 0 auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  width: min(100%, 28rem);
+  max-width: none;
+  height: 100%;
+  height: 100dvh;
+  max-height: none;
+  background: var(--paper, #f7f5ef);
+  color: var(--ink, #1e1e19);
+
+  &::backdrop {
+    background: rgba(23, 24, 19, .53);
+  }
+}
+
+.bag-drawer__panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.bag-drawer__header {
+  padding: 1.5rem clamp(1rem, 5vw, 2rem);
+  border-bottom: 1px solid var(--line, #d9d6cc);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+
+  h2 {
+    margin: 0;
+    font-family: var(--font-display, Georgia, serif);
+    font-size: 2.2rem;
+    font-weight: 400;
+    line-height: 1.1;
+  }
+
+  p {
+    margin: .35rem 0 0;
+    font-size: .84rem;
+    color: var(--muted, #625f54);
+  }
+}
+
+.bag-drawer__close {
+  flex: 0 0 2.75rem;
+  height: 2.75rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  border: 1px solid var(--line, #d9d6cc);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: #eeebe3;
+  }
+}
+
+.bag-drawer__items {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0 clamp(1rem, 5vw, 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+
+  li:last-child {
+    border-bottom: 0;
+  }
+}
+
+.bag-drawer__footer {
+  padding: 1.25rem clamp(1rem, 5vw, 2rem) max(1.25rem, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line, #d9d6cc);
+  display: grid;
+  gap: .8rem;
+}
+
+.bag-drawer__subtotal {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: .95rem;
+}
+
+.bag-drawer .bag-drawer__action {
+  justify-content: space-between;
+}
+
+.bag-drawer__continue {
+  justify-self: center;
+  min-height: 2rem;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  border: 0;
+  font: inherit;
+  font-size: .84rem;
+  text-decoration: underline;
+  text-underline-offset: .2em;
+  cursor: pointer;
+}
+
+.bag-drawer__empty {
+  flex: 1 1 auto;
+  padding: 1.5rem;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  text-align: center;
+
+  p {
+    margin: 1rem 0 1.5rem;
+    font-size: 1.05rem;
+  }
+}

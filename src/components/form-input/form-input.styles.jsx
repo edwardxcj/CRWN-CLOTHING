@@ -1,53 +1,35 @@
-import styled, { css } from "styled-components";
-
-const subColor = "grey";
-const mainColor = "black";
-
-const shrinkLabelStyles = css`
-  top: -14px;
-  font-size: 12px;
-  color: ${mainColor};
-`;
+import styled from "styled-components";
 
 export const FormInputLabel = styled.label`
-  color: ${subColor};
-  font-size: 16px;
-  font-weight: normal;
-  position: absolute;
-  pointer-events: none;
-  left: 5px;
-  top: 10px;
-  transition: 300ms ease all;
-
-  ${({ shrink }) => shrink && shrinkLabelStyles};
+  color: var(--ink);
+  font-size: 0.81rem;
+  font-weight: 700;
 `;
 
 export const Input = styled.input`
-  background: none;
-  background-color: white;
-  color: ${subColor};
-  font-size: 18px;
-  padding: 10px 10px 10px 5px;
   display: block;
   width: 100%;
-  border: none;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
   border-radius: 0;
-  border-bottom: 1px solid ${subColor};
-  margin: 25px 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
 
   &:focus {
-    outline: none;
+    border-color: var(--olive);
+    outline: 1px solid var(--olive);
+    outline-offset: 0;
   }
 
-  &:focus ~ ${FormInputLabel} {
-    ${shrinkLabelStyles};
+  &[aria-invalid="true"] {
+    border-color: #9b2f25;
   }
 `;
 
 export const Group = styled.div`
-  position: relative;
-  margin: 45px 0;
-  input[type="password"] {
-    letter-spacing: 0.3em;
-  }
+  display: grid;
+  gap: 6px;
 `;

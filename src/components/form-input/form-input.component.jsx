@@ -1,14 +1,15 @@
+import { useId } from "react";
+
 import { FormInputLabel, Input, Group } from "./form-input.styles";
 
-const FormInput = ({ label, ...otherProps }) => {
+const FormInput = ({ label, id: suppliedId, ...inputProps }) => {
+  const generatedId = useId();
+  const id = suppliedId ?? generatedId;
+
   return (
     <Group>
-      <Input {...otherProps} />
-      {label && (
-        <FormInputLabel shrink={otherProps.value.length}>
-          {label}
-        </FormInputLabel>
-      )}
+      <FormInputLabel htmlFor={id}>{label}</FormInputLabel>
+      <Input id={id} {...inputProps} />
     </Group>
   );
 };
