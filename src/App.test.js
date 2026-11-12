@@ -5,6 +5,11 @@ import App from "./App";
 import { CartProvider } from "./contexts/cart.context";
 import { UserContext, UserProvider } from "./contexts/user.context";
 import {
+  loadAccountDemoOrder,
+  loadAccountDemoOrders,
+  saveAccountDemoOrder,
+} from "./utils/demo-orders/account-demo-orders.utils";
+import {
   createUserDocumentFromAuth,
   onAuthStateChangedListener,
   updateUserProfile,
@@ -18,8 +23,15 @@ jest.mock("./utils/firebase/firebase.utils", () => ({
   signOutUser: jest.fn(),
 }));
 
+jest.mock("./utils/demo-orders/account-demo-orders.utils", () => ({
+  loadAccountDemoOrder: jest.fn(),
+  loadAccountDemoOrders: jest.fn(),
+  saveAccountDemoOrder: jest.fn(),
+}));
+
 beforeEach(() => {
   window.localStorage.clear();
+  loadAccountDemoOrders.mockResolvedValue([]);
   jest.spyOn(window, "scrollTo").mockImplementation(() => {});
 });
 
@@ -77,7 +89,20 @@ test("demo payment confirms the bag total and clears the saved bag", () => {
   expect(screen.queryByRole("button", { name: "Simulate payment" })).not.toBeInTheDocument();
 });
 
-test("a signed-in customer can reopen their saved demo receipt from their account", () => {
+test("a signed-in customer can reopen their demo receipt with fresh browser storage", async () => {
+  const savedOrders = new Map();
+  saveAccountDemoOrder.mockImplementation(async (order, uid) => {
+    savedOrders.set(uid, order);
+    return order;
+  });
+  loadAccountDemoOrders.mockImplementation(async (uid) => (
+    savedOrders.has(uid) ? [savedOrders.get(uid)] : []
+  ));
+  loadAccountDemoOrder.mockImplementation(async (id, uid) => {
+    const order = savedOrders.get(uid);
+    return order?.id === id ? order : null;
+  });
+
   const signedInApp = (uid) => (
     <UserContext.Provider value={{
       currentUser: { uid, displayName: "Demo shopper", providerData: [] },
@@ -92,19 +117,20 @@ test("a signed-in customer can reopen their saved demo receipt from their accoun
 
   const checkout = openStore("/checkout", signedInApp("demo-shopper-1"));
   fireEvent.click(screen.getByRole("button", { name: "Simulate payment" }));
-  expect(screen.getByRole("heading", { name: "Demo payment successful" })).toBeInTheDocument();
+  expect(await screen.findByText("Saved to your account. No money was charged.")).toBeInTheDocument();
   checkout.unmount();
+  window.localStorage.clear();
 
   const account = openStore("/auth", signedInApp("demo-shopper-1"));
-  const receipt = screen.getByRole("link", { name: /View receipt for DEMO-/ });
+  const receipt = await screen.findByRole("link", { name: /View receipt for DEMO-/ });
   const receiptUrl = receipt.getAttribute("href");
   fireEvent.click(receipt);
-  expect(screen.getByText("Black Converse")).toBeInTheDocument();
+  expect(await screen.findByText("Black Converse")).toBeInTheDocument();
   expect(screen.getByText(/\$220\.00/)).toBeInTheDocument();
   account.unmount();
 
   openStore(receiptUrl, signedInApp("demo-shopper-2"));
-  expect(screen.getByRole("heading", { name: "Demo receipt unavailable" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Demo receipt unavailable" })).toBeInTheDocument();
   expect(screen.queryByText("Black Converse")).not.toBeInTheDocument();
 });
 

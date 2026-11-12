@@ -4,6 +4,8 @@ const storagePrefix = (userId) => userId
 
 const orderIdPattern = /^DEMO-(?:[0-9A-F]{4}-){2}[0-9A-F]{4}$/;
 
+export const isDemoOrderId = (id) => typeof id === "string" && orderIdPattern.test(id);
+
 const makeOrderId = () => {
   const bytes = window.crypto.getRandomValues(new Uint8Array(6));
   const code = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -20,24 +22,31 @@ const isDemoOrderItem = (item) => Boolean(
 
 const isDemoOrder = (order) => Boolean(
   order &&
-  orderIdPattern.test(order.id) &&
+  isDemoOrderId(order.id) &&
   typeof order.placedAt === "string" && Number.isFinite(Date.parse(order.placedAt)) &&
   Array.isArray(order.items) && order.items.length > 0 && order.items.every(isDemoOrderItem) &&
   Number.isSafeInteger(order.count) && order.count > 0 &&
   Number.isFinite(order.total) && order.total >= 0
 );
 
+const copyOrderItems = (items) => items.map(({ id, name, price, quantity }) => ({ id, name, price, quantity }));
+
+export const readDemoOrder = (order, id) => {
+  if (!isDemoOrder(order) || order.id !== id) return null;
+  const { placedAt, items, count, total } = order;
+  return { id, placedAt, items: copyOrderItems(items), count, total };
+};
+
 const parseDemoOrder = (stored, id) => {
   try {
-    const order = JSON.parse(stored);
-    return isDemoOrder(order) && order.id === id ? order : null;
+    return readDemoOrder(JSON.parse(stored), id);
   } catch {
     return null;
   }
 };
 
-export const createDemoOrder = (cartItems, userId) => {
-  const items = cartItems.map(({ id, name, price, quantity }) => ({ id, name, price, quantity }));
+export const buildDemoOrder = (cartItems) => {
+  const items = copyOrderItems(cartItems);
   const order = {
     id: makeOrderId(),
     placedAt: new Date().toISOString(),
@@ -47,7 +56,11 @@ export const createDemoOrder = (cartItems, userId) => {
   };
 
   if (!isDemoOrder(order)) throw new Error("Invalid demo order");
+  return order;
+};
 
+export const createDemoOrder = (cartItems, userId) => {
+  const order = buildDemoOrder(cartItems);
   // One key per order allows separate tabs to add orders without rewriting each other's history.
   const key = `${storagePrefix(userId)}${order.id}`;
   if (window.localStorage.getItem(key) !== null) throw new Error("Demo order reference already used");
@@ -56,7 +69,7 @@ export const createDemoOrder = (cartItems, userId) => {
 };
 
 export const getDemoOrder = (orderId, userId) => {
-  if (!orderIdPattern.test(orderId)) return null;
+  if (!isDemoOrderId(orderId)) return null;
   const stored = window.localStorage.getItem(`${storagePrefix(userId)}${orderId}`);
   return parseDemoOrder(stored, orderId);
 };

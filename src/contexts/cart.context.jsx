@@ -108,7 +108,9 @@ export const CartProvider = ({ children }) => {
     addItemToCart,
     removeItemFromCart,
     clearItemFromCart,
-    clearCart: () => setCartItems([]),
+    clearCart: (purchasedItems) => setCartItems((items) => (
+      !purchasedItems || items === purchasedItems ? [] : items
+    )),
     cartItems,
     cartCount,
     cartTotal,
