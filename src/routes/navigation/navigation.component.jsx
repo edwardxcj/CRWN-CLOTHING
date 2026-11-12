@@ -1,5 +1,5 @@
-import { useContext, useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Link, NavLink, Outlet, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 
 import CartDropdown from "../../components/cart-dropdown/cart-dropdown.component";
 import StoreIcon from "../../components/store-icon/store-icon";
@@ -107,14 +107,36 @@ const Navigation = () => {
   const { currentUser } = useContext(UserContext);
   const { cartCount, setIsCartOpen } = useContext(CartContext);
   const location = useLocation();
+  const navigationType = useNavigationType();
   const searchTerm = new URLSearchParams(location.search).get("q");
+  const previousLocation = useRef(null);
+  const catalogPositions = useRef(new Map());
   const menuRef = useRef(null);
   const searchRef = useRef(null);
   const openBag = () => setIsCartOpen(true);
 
-  useEffect(() => {
-    if (!location.hash) window.scrollTo(0, 0);
-  }, [location.pathname, location.hash, searchTerm]);
+  const rememberCatalogPosition = () => {
+    catalogPositions.current.set(location.key, window.scrollY);
+  };
+
+  const { hash, key, pathname } = location;
+  useLayoutEffect(() => {
+    const previous = previousLocation.current;
+    previousLocation.current = { hash, pathname, searchTerm };
+
+    if (navigationType === "POP") {
+      const position = catalogPositions.current.get(key);
+      if (position !== undefined) {
+        window.scrollTo(0, position);
+        catalogPositions.current.delete(key);
+      }
+      return;
+    }
+
+    if (!hash && (!previous || previous.pathname !== pathname || previous.hash !== hash || previous.searchTerm !== searchTerm)) {
+      window.scrollTo(0, 0);
+    }
+  }, [hash, key, navigationType, pathname, searchTerm]);
 
   return (
     <>
@@ -160,7 +182,9 @@ const Navigation = () => {
         </div>
       </dialog>
       <HeaderSearch dialogRef={searchRef} />
-      <main id="main-content" className="site-main" tabIndex={-1}><Outlet /></main>
+      <main id="main-content" className="site-main" tabIndex={-1}>
+        <Outlet context={{ rememberCatalogPosition }} />
+      </main>
       <SiteFooter signedIn={Boolean(currentUser)} openBag={openBag} />
       <CartDropdown />
     </>

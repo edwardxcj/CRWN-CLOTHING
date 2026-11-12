@@ -19,6 +19,11 @@ export const formatPrice = (price) => currency.format(price);
 export const productPath = (product) =>
   `/shop/product/${encodeURIComponent(product.id)}`;
 
+export const isSameTabLinkClick = (event) =>
+  event.button === 0 &&
+  !event.defaultPrevented &&
+  !(event.metaKey || event.altKey || event.ctrlKey || event.shiftKey);
+
 export const catalogProducts = (categoriesMap) =>
   Object.entries(categoriesMap).flatMap(([category, products]) =>
     products.map((product) => ({ ...product, category }))

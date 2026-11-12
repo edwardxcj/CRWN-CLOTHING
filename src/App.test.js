@@ -3,7 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 
 import App from "./App";
 import { CartProvider } from "./contexts/cart.context";
-import { UserProvider } from "./contexts/user.context";
+import { UserContext, UserProvider } from "./contexts/user.context";
 import {
   createUserDocumentFromAuth,
   onAuthStateChangedListener,
@@ -19,6 +19,7 @@ jest.mock("./utils/firebase/firebase.utils", () => ({
 }));
 
 beforeEach(() => {
+  window.localStorage.clear();
   jest.spyOn(window, "scrollTo").mockImplementation(() => {});
 });
 
@@ -74,6 +75,37 @@ test("demo payment confirms the bag total and clears the saved bag", () => {
   openStore("/checkout");
   expect(screen.getByRole("heading", { name: "Your bag is empty" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Simulate payment" })).not.toBeInTheDocument();
+});
+
+test("a signed-in customer can reopen their saved demo receipt from their account", () => {
+  const signedInApp = (uid) => (
+    <UserContext.Provider value={{
+      currentUser: { uid, displayName: "Demo shopper", providerData: [] },
+      isAuthReady: true,
+    }}>
+      <App />
+    </UserContext.Provider>
+  );
+  window.localStorage.setItem("crwn-shopping-bag", JSON.stringify([
+    { id: 12, name: "Black Converse", price: 110, quantity: 2 },
+  ]));
+
+  const checkout = openStore("/checkout", signedInApp("demo-shopper-1"));
+  fireEvent.click(screen.getByRole("button", { name: "Simulate payment" }));
+  expect(screen.getByRole("heading", { name: "Demo payment successful" })).toBeInTheDocument();
+  checkout.unmount();
+
+  const account = openStore("/auth", signedInApp("demo-shopper-1"));
+  const receipt = screen.getByRole("link", { name: /View receipt for DEMO-/ });
+  const receiptUrl = receipt.getAttribute("href");
+  fireEvent.click(receipt);
+  expect(screen.getByText("Black Converse")).toBeInTheDocument();
+  expect(screen.getByText(/\$220\.00/)).toBeInTheDocument();
+  account.unmount();
+
+  openStore(receiptUrl, signedInApp("demo-shopper-2"));
+  expect(screen.getByRole("heading", { name: "Demo receipt unavailable" })).toBeInTheDocument();
+  expect(screen.queryByText("Black Converse")).not.toBeInTheDocument();
 });
 
 test("a signed-in customer can save their profile without changing their login email", async () => {
