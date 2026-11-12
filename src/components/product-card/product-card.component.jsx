@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 import { CartContext } from "../../contexts/cart.context";
 import { catalogImage } from "../../utils/catalog/catalog-image";
-import { categoryLabel, formatPrice, productPath } from "../../utils/catalog/catalog.utils";
+import { categoryLabel, formatPrice, isSameTabLinkClick, productPath } from "../../utils/catalog/catalog.utils";
 
 import "./product-card.styles.scss";
 
@@ -36,13 +36,20 @@ export const CatalogImage = ({
   );
 };
 
-const ProductCard = ({ product, category = product.category }) => {
+const ProductCard = ({ product, category = product.category, catalogReturn, rememberCatalogPosition }) => {
   const { name, price } = product;
   const { addItemToCart } = useContext(CartContext);
 
   return (
     <article className="product-card">
-      <Link className="product-card__link" to={productPath(product)}>
+      <Link
+        className="product-card__link"
+        to={productPath(product)}
+        state={catalogReturn ? { catalogReturn } : undefined}
+        onClick={(event) => {
+          if (rememberCatalogPosition && isSameTabLinkClick(event)) rememberCatalogPosition();
+        }}
+      >
         <div className="product-card__media">
           <CatalogImage product={product} alt="" className="product-card__image" />
         </div>

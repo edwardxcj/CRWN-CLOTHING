@@ -1,10 +1,11 @@
 import { useContext } from "react";
-import { Link, Route, Routes, useParams, useSearchParams } from "react-router-dom";
+import { Link, Route, Routes, useLocation, useNavigate, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 
-import ProductCard, { CatalogImage } from "../../components/product-card/product-card.component";
+import ProductCard from "../../components/product-card/product-card.component";
+import ProductDetails from "../../components/product-details/product-details.component";
 import { CartContext } from "../../contexts/cart.context";
 import { CategoriesContext } from "../../contexts/categories.context";
-import { catalogProducts, categoryLabel, formatPrice } from "../../utils/catalog/catalog.utils";
+import { catalogProducts, categoryLabel, isSameTabLinkClick } from "../../utils/catalog/catalog.utils";
 
 import "./shop.styles.scss";
 
@@ -32,8 +33,17 @@ const sortOptions = {
 
 const shopPath = (category) => (category ? `/shop/${encodeURIComponent(category)}` : "/shop");
 
+const isCatalogPath = (pathname) =>
+  typeof pathname === "string" && /^\/shop(?:\/[^/]+)?\/?$/i.test(pathname);
+
 const searchWords = (text) =>
-  text.toLowerCase().replace(/['’]/g, "").match(/[a-z0-9]+/g) ?? [];
+  text
+    .normalize("NFKD")
+    .replace(/(\p{Script=Latin})\p{M}+/gu, "$1")
+    .replace(/['’]/g, "")
+    .replace(/([\p{Ll}\p{N}])(\p{Lu})/gu, "$1 $2")
+    .toLowerCase()
+    .match(/[\p{L}\p{M}\p{N}]+/gu) ?? [];
 
 const filterCatalog = (products, category, query, sort) => {
   const terms = searchWords(query);
@@ -42,8 +52,21 @@ const filterCatalog = (products, category, query, sort) => {
   return products
     .filter((product) => {
       if (category && product.category !== category) return false;
-      const words = searchWords(`${product.name} ${categoryLabel(product.category)} ${product.category}`);
-      return terms.every((term) => words.some((word) => word.startsWith(term)));
+      if (terms.length === 0) return true;
+
+      const nameWords = searchWords(product.name);
+      const words = [
+        ...nameWords,
+        ...nameWords.slice(1).map((word, index) => nameWords[index] + word),
+        ...searchWords(categoryLabel(product.category)),
+        ...searchWords(product.category),
+      ];
+      const matchesPrefix = (term) => words.some((word) => word.startsWith(term));
+
+      // Match spaced and joined spellings such as "Air Force" and "AirForce".
+      return terms.every((term, index) =>
+        matchesPrefix(term) || (index > 0 && matchesPrefix(terms[index - 1] + term))
+      );
     })
     .sort(sortOptions[sort].compare);
 };
@@ -88,6 +111,9 @@ const CatalogListing = () => {
   const { category: categoryParam } = useParams();
   const category = categoryParam?.toLowerCase();
   const { categoriesMap, catalogLoading } = useContext(CategoriesContext);
+  const { pathname, search, hash } = useLocation();
+  const { rememberCatalogPosition } = useOutletContext() ?? {};
+  const catalogReturn = { to: { pathname, search, hash }, steps: 1 };
   const [searchParams, setSearchParams] = useSearchParams();
   const query = (searchParams.get("q") ?? "").trim();
   const requestedSort = searchParams.get("sort");
@@ -150,7 +176,14 @@ const CatalogListing = () => {
 
         {products.length > 0 ? (
           <div className="shop-product-grid">
-            {products.map((product) => <ProductCard key={product.id} product={product} />)}
+            {products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                catalogReturn={catalogReturn}
+                rememberCatalogPosition={rememberCatalogPosition}
+              />
+            ))}
           </div>
         ) : !knownCategory && catalogLoading ? (
           <p className="catalog-loading" role="status">Loading collection…</p>
@@ -174,6 +207,8 @@ const CatalogListing = () => {
 
 const ProductDetail = () => {
   const { productId } = useParams();
+  const { state } = useLocation();
+  const navigate = useNavigate();
   const { categoriesMap, catalogLoading } = useContext(CategoriesContext);
   const { addItemToCart } = useContext(CartContext);
   const products = catalogProducts(categoriesMap);
@@ -192,35 +227,49 @@ const ProductDetail = () => {
     );
   }
 
-  const { name, price, category, description } = product;
+  const { name, category } = product;
+  const catalogReturn = state?.catalogReturn;
+  const hasCatalogReturn = isCatalogPath(catalogReturn?.to?.pathname) &&
+    Number.isSafeInteger(catalogReturn.steps) && catalogReturn.steps > 0;
+  const backTo = hasCatalogReturn ? catalogReturn.to : shopPath(category);
+  const relatedCatalogReturn = hasCatalogReturn
+    ? { to: catalogReturn.to, steps: catalogReturn.steps + 1 }
+    : undefined;
+  let backLabel = `Back to ${categoryLabel(category)}`;
+  if (hasCatalogReturn) {
+    if (new URLSearchParams(backTo.search).get("q")) backLabel = "Back to search results";
+    else if (/^\/shop\/?$/i.test(backTo.pathname)) backLabel = "Back to shop";
+  }
+
+  const returnToCatalog = (event) => {
+    if (!hasCatalogReturn || !isSameTabLinkClick(event)) return;
+    event.preventDefault();
+    navigate(-catalogReturn.steps);
+  };
+
   const relatedProducts = products
-    .filter((item) => item.category === category && item.id !== product.id)
+    .filter((item) => item.category === category && String(item.id) !== productId)
     .slice(0, 4);
 
   return (
     <section className="container shop-detail">
       <ShopBreadcrumbs category={category} productName={name} />
-      <div className="shop-detail__main">
-        <div className="shop-detail__media">
-          <CatalogImage product={product} className="shop-detail__image" loading="eager" />
-        </div>
-        <div className="shop-detail__summary">
-          <h1>{name}</h1>
-          <p className="shop-detail__price">{formatPrice(price)}</p>
-          {typeof description === "string" && <p className="shop-detail__description">{description}</p>}
-          <button type="button" className="store-button shop-detail__add" onClick={() => addItemToCart(product)}>
-            Add to bag <span aria-hidden="true">+</span>
-          </button>
-          <Link className="shop-detail__back" to={shopPath(category)}>
-            <span aria-hidden="true">←</span> Back to {categoryLabel(category)}
+      <ProductDetails
+        product={product}
+        onAddToCart={addItemToCart}
+        backLink={(
+          <Link className="shop-detail__back" to={backTo} onClick={returnToCatalog}>
+            <span aria-hidden="true">←</span> {backLabel}
           </Link>
-        </div>
-      </div>
+        )}
+      />
       {relatedProducts.length > 0 && (
         <section className="shop-detail__related" aria-labelledby="related-products-title">
           <h2 id="related-products-title">More from {categoryLabel(category)}</h2>
           <div className="shop-product-grid">
-            {relatedProducts.map((item) => <ProductCard key={item.id} product={item} />)}
+            {relatedProducts.map((item) => (
+              <ProductCard key={item.id} product={item} catalogReturn={relatedCatalogReturn} />
+            ))}
           </div>
         </section>
       )}

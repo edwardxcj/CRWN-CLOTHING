@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import DemoOrders from "../demo-orders/demo-orders.component";
 import StoreIcon from "../store-icon/store-icon";
 import "./account-dashboard.styles.scss";
 
@@ -184,6 +185,11 @@ const AccountDashboard = ({
           </div>
 
           <nav className="account-dashboard__shortcuts" aria-label="Shopping shortcuts">
+            <a href="#demo-orders">
+              <StoreIcon name="card" size={18} />
+              Demo orders
+              <StoreIcon name="arrow" size={15} />
+            </a>
             <Link to="/shop">
               <StoreIcon name="arrow" size={18} />
               Continue shopping
@@ -297,6 +303,8 @@ const AccountDashboard = ({
               )}
             </div>
           </section>
+
+          <DemoOrders userId={user.uid} className="account-dashboard__panel" />
 
           <section className="account-dashboard__panel" aria-labelledby="sign-in-details-title">
             <div className="account-dashboard__panel-heading">
