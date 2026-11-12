@@ -10,7 +10,7 @@ CRWN Clothing is a responsive fashion storefront built with React and Firebase. 
 
 - Browse by category, search by product name, sort results, and open shareable product pages. Returning to the catalog restores your search, filters, and position.
 - Add products to a shopping bag, adjust quantities, and keep the bag across refreshes in the same browser.
-- Try checkout with a preset test card. The confirmation includes a demo order reference, item details, and a total. Signed-in shoppers can reopen their receipts from the account center in the same browser. The demo makes no charges or real orders.
+- Try checkout with a preset test card. The confirmation includes a demo order reference, item details, and a total. Signed-in shoppers can reopen receipts from any device using the same account. Open the account center on your original browser to sync demo orders previously saved there while signed in. Guest receipts stay in their original browser. The demo makes no charges or real orders.
 - Sign in with Google or email and password. In the account center, edit your display name and set an avatar with an HTTPS image link. The sign-in email is read-only.
 
 ![CRWN account center showing editable personal details and sign-in information for a test account](docs/images/account.webp)
@@ -36,5 +36,7 @@ Open [localhost:3000](http://localhost:3000). To use Google sign-in on a differe
 yarn test --watchAll=false
 yarn build
 ```
+
+With the Firebase CLI and Java installed, test the rules in `firestore.rules` with `firebase emulators:exec --only auth,firestore --project demo-crwn-sync 'node --test tests/firestore-rules.test.mjs'`.
 
 Netlify publishes the `build` directory. The rewrite in `public/_redirects` lets visitors open product, category, and account URLs directly.
