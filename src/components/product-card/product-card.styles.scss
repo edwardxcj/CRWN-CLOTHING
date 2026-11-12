@@ -20,7 +20,6 @@
 }
 
 .product-card__image {
-  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -29,15 +28,6 @@
 
 .product-card__link:hover img {
   transform: scale(1.035);
-}
-
-.catalog-image-placeholder {
-  display: grid;
-  place-items: center;
-  text-align: center;
-  background: #eae7df;
-  color: var(--muted);
-  font-size: 0.8rem;
 }
 
 .product-card__category {

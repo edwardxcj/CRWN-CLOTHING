@@ -2,8 +2,9 @@ import { useContext } from "react";
 import { Link } from "react-router-dom";
 
 import { CartContext } from "../../contexts/cart.context";
+import { catalogPhoto } from "../../utils/catalog/catalog-image";
 import { formatPrice, productPath } from "../../utils/catalog/catalog.utils";
-import { CatalogImage } from "../product-card/product-card.component";
+import CatalogImage from "../catalog-image/catalog-image.component";
 
 import "./checkout-item.styles.scss";
 
@@ -15,7 +16,11 @@ const CheckoutItem = ({ cartItem, compact = false, onNavigate }) => {
   return (
     <li className={compact ? "bag-line bag-line--compact" : "bag-line"}>
       <div className="bag-line__photo">
-        <CatalogImage product={cartItem} alt="" />
+        <CatalogImage
+          photo={catalogPhoto(cartItem)}
+          alt=""
+          sizes={compact ? "72px" : "(max-width: 680px) 72px, 96px"}
+        />
       </div>
       <div className="bag-line__description">
         <Link to={productPath(cartItem)} onClick={onNavigate}>

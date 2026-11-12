@@ -1,44 +1,56 @@
-// Keep original catalog imagery available without relying on its external host.
-const localImages = {
-  "ZYW3VTp/brown-brim.png": "brown-brim",
-  "ypkgK0X/blue-beanie.png": "blue-beanie",
-  "QdJwgmp/brown-cowboy.png": "brown-cowboy",
-  "RjBLWxB/grey-brim.png": "grey-brim",
-  "YTjW3vF/green-beanie.png": "green-beanie",
-  "rKBDvJX/palm-tree-cap.png": "palm-tree-cap",
-  "bLB646Z/red-beanie.png": "red-beanie",
-  "1f2nWMM/wolf-cap.png": "wolf-cap",
-  "X2VJP2W/blue-snapback.png": "blue-snapback",
-  "0s3pdnc/adidas-nmd.png": "adidas-nmd",
-  "dJbG1cT/yeezy.png": "yeezy",
-  "bPmVXyP/black-converse.png": "black-converse",
-  "1RcFPk0/white-nike-high-tops.png": "white-nike-high-tops",
-  "QcvzydB/nikes-red.png": "nikes-red",
-  "fMTV342/nike-brown.png": "nike-brown",
-  "w4k6Ws9/nike-funky.png": "nike-funky",
-  "Mhh6wBg/timberlands.png": "timberlands",
-  "XzcwL5s/black-shearling.png": "black-shearling",
-  "mJS6vz0/blue-jean-jacket.png": "blue-jean-jacket",
-  "N71k1ML/grey-jean-jacket.png": "grey-jean-jacket",
-  "s96FpdP/brown-shearling.png": "brown-shearling",
-  "M6hHc3F/brown-trench.png": "brown-trench",
-  "7CQVJNm/blue-tank.png": "blue-tank",
-  "4W2DGKm/floral-blouse.png": "floral-blouse",
-  "KV18Ysr/floral-skirt.png": "floral-skirt",
-  "N3BN1bh/red-polka-dot-dress.png": "red-polka-dot-dress",
-  "KmSkMbH/striped-sweater.png": "striped-sweater",
-  "v1cvwNf/yellow-track-suit.png": "yellow-track-suit",
-  "qBcrsJg/white-vest.png": "white-vest",
-  "xJS0T3Y/camo-vest.png": "camo-vest",
-  "qMQ75QZ/floral-shirt.png": "floral-shirt",
-  "55z32tw/long-sleeve.png": "long-sleeve",
-  "RvwnBL8/pink-shirt.png": "pink-shirt",
-  "VpW4x5t/roll-up-jean-shirt.png": "roll-up-jean-shirt",
-  "mh3VM1f/polka-dot-shirt.png": "polka-dot-shirt",
-};
+const photoSlugs = new Map([
+  ["1", "brown-brim"],
+  ["2", "blue-beanie"],
+  ["3", "brown-cowboy"],
+  ["4", "grey-brim"],
+  ["5", "green-beanie"],
+  ["6", "palm-tree-cap"],
+  ["7", "red-beanie"],
+  ["8", "wolf-cap"],
+  ["9", "blue-snapback"],
+  ["10", "adidas-nmd"],
+  ["11", "yeezy"],
+  ["12", "black-converse"],
+  ["13", "white-nike-high-tops"],
+  ["14", "nikes-red"],
+  ["15", "nike-brown"],
+  ["16", "nike-funky"],
+  ["17", "timberlands"],
+  ["18", "black-shearling"],
+  ["19", "blue-jean-jacket"],
+  ["20", "grey-jean-jacket"],
+  ["21", "brown-shearling"],
+  ["22", "brown-trench"],
+  ["23", "blue-tank"],
+  ["24", "floral-blouse"],
+  ["25", "floral-skirt"],
+  ["26", "red-polka-dot-dress"],
+  ["27", "striped-sweater"],
+  ["28", "yellow-track-suit"],
+  ["29", "white-vest"],
+  ["30", "camo-vest"],
+  ["31", "floral-shirt"],
+  ["32", "long-sleeve"],
+  ["33", "pink-shirt"],
+  ["34", "roll-up-jean-shirt"],
+  ["35", "polka-dot-shirt"],
+]);
 
-export const catalogImage = (imageUrl) => {
-  const key = typeof imageUrl === "string" && imageUrl.replace(/^https:\/\/i\.ibb\.co\//, "");
-  const name = key && Object.prototype.hasOwnProperty.call(localImages, key) && localImages[key];
-  return name ? `${process.env.PUBLIC_URL}/media/catalog/${name}.webp` : imageUrl;
+const catalogMedia = `${process.env.PUBLIC_URL}/media/catalog`;
+
+export const catalogPhoto = ({ id, imageUrl }) => {
+  // A saved bag may still have the original external URL, or no URL at all.
+  const slug = photoSlugs.get(String(id));
+  if (!slug) return { src: imageUrl };
+
+  const base = `${catalogMedia}/studio/${slug}`;
+  const src = `${base}.webp`;
+
+  return {
+    src,
+    srcSet: `${base}-small.webp 480w, ${src} 1120w`,
+    width: 1120,
+    height: 1400,
+    fallback: `${catalogMedia}/${slug}.webp`,
+  };
 };
