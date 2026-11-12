@@ -31,6 +31,10 @@
   font-size: 0.9rem;
 }
 
+.product-details__photo--studio {
+  aspect-ratio: 4 / 5;
+}
+
 .product-details__enlarge {
   position: absolute;
   right: 0.8rem;
@@ -67,6 +71,7 @@
 
   img {
     width: 100%;
+    height: auto;
     max-height: calc(100vh - 7.5rem);
     max-height: calc(100dvh - 7.5rem);
     object-fit: contain;
@@ -170,6 +175,11 @@
   .product-details__photo {
     aspect-ratio: 4 / 3;
     max-height: 28rem;
+  }
+
+  .product-details__photo--studio {
+    aspect-ratio: 4 / 5;
+    max-height: 34rem;
   }
 
   .product-details__summary {

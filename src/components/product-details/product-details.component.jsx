@@ -1,21 +1,28 @@
 import { useId, useRef, useState } from "react";
 
+import CatalogImage from "../catalog-image/catalog-image.component";
 import StoreIcon from "../store-icon/store-icon";
-import { catalogImage } from "../../utils/catalog/catalog-image";
+import { catalogPhoto } from "../../utils/catalog/catalog-image";
 import { formatPrice } from "../../utils/catalog/catalog.utils";
 import { getProductDetailCopy } from "./product-details.copy";
 
 import "./product-details.styles.scss";
 
-const ProductPhoto = ({ src, name }) => {
+const detailPhotoSizes = "(max-width: 700px) 94vw, (max-width: 1510px) 49vw, 725px";
+
+const ProductPhoto = ({ photo, name }) => {
   const dialogId = useId();
   const dialogRef = useRef(null);
   const closeButtonRef = useRef(null);
   const [unavailable, setUnavailable] = useState(false);
 
-  if (!src || unavailable) {
+  const photoClass = photo.width
+    ? "product-details__photo product-details__photo--studio"
+    : "product-details__photo";
+
+  if (!photo.src || unavailable) {
     return (
-      <div className="product-details__photo product-details__photo--unavailable">
+      <div className={`${photoClass} product-details__photo--unavailable`}>
         Image unavailable
       </div>
     );
@@ -29,18 +36,19 @@ const ProductPhoto = ({ src, name }) => {
   return (
     <div className="product-details__gallery">
       <button
-        className="product-details__photo"
+        className={photoClass}
         type="button"
         aria-label={`Enlarge photo of ${name}`}
         aria-haspopup="dialog"
         aria-controls={dialogId}
         onClick={openPhoto}
       >
-        <img
-          src={src}
+        <CatalogImage
+          photo={photo}
           alt={name}
-          decoding="async"
-          onError={() => setUnavailable(true)}
+          sizes={detailPhotoSizes}
+          loading="eager"
+          onUnavailable={() => setUnavailable(true)}
         />
         <span className="product-details__enlarge" aria-hidden="true">
           <StoreIcon name="search" size={16} />
@@ -67,7 +75,7 @@ const ProductPhoto = ({ src, name }) => {
             <StoreIcon name="close" size={20} />
             Close photo
           </button>
-          <img src={src} alt={name} loading="lazy" decoding="async" />
+          <CatalogImage photo={photo} alt={name} />
         </div>
       </dialog>
     </div>
@@ -75,13 +83,13 @@ const ProductPhoto = ({ src, name }) => {
 };
 
 const ProductDetails = ({ product, onAddToCart, backLink }) => {
-  const { name, price, imageUrl } = product;
-  const photo = catalogImage(imageUrl);
+  const { name, price } = product;
+  const photo = catalogPhoto(product);
   const { description, details, sizing } = getProductDetailCopy(product);
 
   return (
     <div className="product-details">
-      <ProductPhoto key={photo || name} src={photo} name={name} />
+      <ProductPhoto key={photo.src || name} photo={photo} name={name} />
       <div className="product-details__summary">
         <h1>{name}</h1>
         <p className="product-details__price">{formatPrice(price)}</p>

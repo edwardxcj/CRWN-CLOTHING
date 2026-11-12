@@ -1,40 +1,14 @@
-import { useContext, useState } from "react";
+import { useContext } from "react";
 import { Link } from "react-router-dom";
 
 import { CartContext } from "../../contexts/cart.context";
-import { catalogImage } from "../../utils/catalog/catalog-image";
+import { catalogPhoto } from "../../utils/catalog/catalog-image";
 import { categoryLabel, formatPrice, isSameTabLinkClick, productPath } from "../../utils/catalog/catalog.utils";
+import CatalogImage from "../catalog-image/catalog-image.component";
 
 import "./product-card.styles.scss";
 
-export const CatalogImage = ({
-  product,
-  alt = product.name,
-  className,
-  loading = "lazy",
-}) => {
-  const src = catalogImage(product.imageUrl);
-  const [failedSrc, setFailedSrc] = useState(null);
-
-  if (!src || failedSrc === src) {
-    return (
-      <div className={`catalog-image-placeholder ${className ?? ""}`} aria-hidden={!alt}>
-        Image unavailable
-      </div>
-    );
-  }
-
-  return (
-    <img
-      className={className}
-      src={src}
-      alt={alt}
-      loading={loading}
-      decoding="async"
-      onError={() => setFailedSrc(src)}
-    />
-  );
-};
+const cardPhotoSizes = "(max-width: 700px) 46vw, (max-width: 850px) 30vw, (max-width: 1510px) 23vw, 350px";
 
 const ProductCard = ({ product, category = product.category, catalogReturn, rememberCatalogPosition }) => {
   const { name, price } = product;
@@ -51,7 +25,12 @@ const ProductCard = ({ product, category = product.category, catalogReturn, reme
         }}
       >
         <div className="product-card__media">
-          <CatalogImage product={product} alt="" className="product-card__image" />
+          <CatalogImage
+            photo={catalogPhoto(product)}
+            alt=""
+            className="product-card__image"
+            sizes={cardPhotoSizes}
+          />
         </div>
         {category && <span className="product-card__category">{categoryLabel(category)}</span>}
         <div className="product-card__info">
