@@ -49,6 +49,35 @@
   font-size: .82rem;
 }
 
+.bag-line__variant,
+.bag-line__stock,
+.bag-line__size {
+  font-size: .78rem;
+  color: var(--muted, #625f54);
+}
+
+.bag-line__size {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .45rem;
+
+  select {
+    max-width: 100%;
+    min-height: 38px;
+    padding: .35rem .5rem;
+    border: 1px solid var(--line);
+    border-radius: 0;
+    background: var(--white);
+    color: var(--ink);
+    font: inherit;
+  }
+}
+
+.bag-line__stock {
+  color: #8c3c2c;
+}
+
 .bag-line__controls {
   grid-area: controls;
   display: grid;
@@ -77,6 +106,11 @@
 
     &:hover {
       background: #eeebe3;
+    }
+
+    &:disabled {
+      opacity: .4;
+      cursor: not-allowed;
     }
   }
 }

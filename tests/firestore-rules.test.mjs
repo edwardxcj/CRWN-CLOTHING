@@ -18,6 +18,7 @@ import {
   getDocsFromServer,
   getFirestore,
   setDoc,
+  serverTimestamp,
   terminate,
   updateDoc,
 } from "firebase/firestore";
@@ -156,5 +157,27 @@ test("Firestore rules isolate demo orders while preserving catalog and profile a
     };
     await setDoc(receipt(owner, uid, order.id), order);
     assert.deepEqual((await getDocFromServer(receipt(secondBrowser, uid, order.id))).data(), order);
+  });
+
+  await t.test("wishlist is shared by the same account and isolated from guests and other accounts", async () => {
+    const wishlist = (client, userId) => collection(client.db, "users", userId, "wishlist");
+    const item = (client, userId, productId = "13") => doc(wishlist(client, userId), productId);
+    await setDoc(item(owner, uid), { productId: 13, savedAt: serverTimestamp() });
+    assert.equal((await getDocFromServer(item(secondBrowser, uid))).data().productId, 13);
+    assert.equal((await getDocsFromServer(wishlist(secondBrowser, uid))).size, 1);
+    for (const client of [guest, other]) {
+      await deny(getDocFromServer(item(client, uid)));
+      await deny(getDocsFromServer(wishlist(client, uid)));
+      await deny(setDoc(item(client, uid), { productId: 13, savedAt: serverTimestamp() }));
+      await deny(deleteDoc(item(client, uid)));
+    }
+    await setDoc(item(secondBrowser, uid), { productId: 13, savedAt: serverTimestamp() });
+    await deleteDoc(item(secondBrowser, uid));
+    assert.equal((await getDocFromServer(item(owner, uid))).exists(), false);
+    assert.equal((await getDocsFromServer(wishlist(other, otherUid))).size, 0);
+    await deny(setDoc(item(owner, uid, "12"), { productId: 13, savedAt: serverTimestamp() }));
+    await deny(setDoc(item(owner, uid, "36"), { productId: 36, savedAt: serverTimestamp() }));
+    await deny(setDoc(item(owner, uid), { productId: 13, savedAt: new Date(0) }));
+    await deny(setDoc(item(owner, uid), { productId: 13, savedAt: serverTimestamp(), owner: otherUid }));
   });
 });

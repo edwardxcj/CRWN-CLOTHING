@@ -1,4 +1,6 @@
-import { createContext, useState, useEffect } from "react";
+import { createContext, useState, useEffect, useRef } from "react";
+
+import { getCartItemKey, getProductVariants, getSelectedVariant, selectedVariantItem } from "../utils/catalog/product-variants";
 
 const STORAGE_KEY = "crwn-shopping-bag";
 
@@ -23,41 +25,59 @@ const readCartItems = () => {
 };
 
 const addCartItem = (cartItems, productToAdd) => {
+  const variant = getSelectedVariant(productToAdd);
+  if (getProductVariants(productToAdd).length && !variant) return cartItems;
+  const itemToAdd = variant ? selectedVariantItem(productToAdd, variant) : productToAdd;
+  const key = getCartItemKey(itemToAdd);
   const existingCartItem = cartItems.find(
-    (cartItem) => cartItem.id === productToAdd.id
+    (cartItem) => getCartItemKey(cartItem) === key
   );
+  if (variant && (existingCartItem?.quantity || 0) >= variant.stock) return cartItems;
 
   if (existingCartItem) {
     return cartItems.map((cartItem) =>
-      cartItem.id === productToAdd.id
-        ? { ...cartItem, ...productToAdd, quantity: cartItem.quantity + 1 }
+      getCartItemKey(cartItem) === key
+        ? { ...cartItem, ...itemToAdd, quantity: cartItem.quantity + 1 }
         : cartItem
     );
   }
 
-  return [...cartItems, { ...productToAdd, quantity: 1 }];
+  return [...cartItems, { ...itemToAdd, quantity: 1 }];
 };
 
 const removeCartItem = (cartItems, cartItemToRemove) => {
   const existingCartItem = cartItems.find(
-    (cartItem) => cartItem.id === cartItemToRemove.id
+    (cartItem) => getCartItemKey(cartItem) === getCartItemKey(cartItemToRemove)
   );
 
   if (!existingCartItem) return cartItems;
 
   if (existingCartItem.quantity === 1) {
-    return cartItems.filter((cartItem) => cartItem.id !== cartItemToRemove.id);
+    return cartItems.filter((cartItem) => getCartItemKey(cartItem) !== getCartItemKey(cartItemToRemove));
   }
 
   return cartItems.map((cartItem) =>
-    cartItem.id === cartItemToRemove.id
+    getCartItemKey(cartItem) === getCartItemKey(cartItemToRemove)
       ? { ...cartItem, quantity: cartItem.quantity - 1 }
       : cartItem
   );
 };
 
 const clearCartItem = (cartItems, cartItemToClear) =>
-  cartItems.filter((cartItem) => cartItem.id !== cartItemToClear.id);
+  cartItems.filter((cartItem) => getCartItemKey(cartItem) !== getCartItemKey(cartItemToClear));
+
+const chooseCartItemVariant = (cartItems, item, selectedVariant) => {
+  const variant = getProductVariants(item).find((option) => option.key === selectedVariant?.key);
+  if (!variant || variant.stock < 1) return cartItems;
+  const oldKey = getCartItemKey(item);
+  const source = cartItems.find((entry) => getCartItemKey(entry) === oldKey);
+  if (!source) return cartItems;
+  const existing = cartItems.find((entry) => getCartItemKey(entry) === variant.key && getCartItemKey(entry) !== oldKey);
+  const quantity = source.quantity + (existing?.quantity || 0);
+  if (quantity > variant.stock) return cartItems;
+  const remaining = cartItems.filter((entry) => ![oldKey, variant.key].includes(getCartItemKey(entry)));
+  return [...remaining, { ...selectedVariantItem(source, variant), quantity }];
+};
 
 export const CartContext = createContext({
   isCartOpen: false,
@@ -67,6 +87,9 @@ export const CartContext = createContext({
   removeItemFromCart: () => {},
   clearItemFromCart: () => {},
   clearCart: () => {},
+  chooseItemVariant: () => {},
+  isCheckoutSaving: false,
+  setIsCheckoutSaving: () => {},
   cartCount: 0,
   cartTotal: 0,
 });
@@ -74,6 +97,12 @@ export const CartContext = createContext({
 export const CartProvider = ({ children }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState(readCartItems);
+  const [isCheckoutSaving, updateIsCheckoutSaving] = useState(false);
+  const savingRef = useRef(false);
+  const setIsCheckoutSaving = (saving) => {
+    savingRef.current = saving;
+    updateIsCheckoutSaving(saving);
+  };
 
   useEffect(() => {
     try {
@@ -84,16 +113,24 @@ export const CartProvider = ({ children }) => {
   }, [cartItems]);
 
   const addItemToCart = (productToAdd, { openDrawer = true } = {}) => {
-    setCartItems((items) => addCartItem(items, productToAdd));
+    if (savingRef.current) return;
+    setCartItems((items) => savingRef.current ? items : addCartItem(items, productToAdd));
     if (openDrawer) setIsCartOpen(true);
   };
 
   const removeItemFromCart = (cartItemToRemove) => {
-    setCartItems((items) => removeCartItem(items, cartItemToRemove));
+    if (savingRef.current) return;
+    setCartItems((items) => savingRef.current ? items : removeCartItem(items, cartItemToRemove));
   };
 
   const clearItemFromCart = (cartItemToClear) => {
-    setCartItems((items) => clearCartItem(items, cartItemToClear));
+    if (savingRef.current) return;
+    setCartItems((items) => savingRef.current ? items : clearCartItem(items, cartItemToClear));
+  };
+
+  const chooseItemVariant = (item, variant) => {
+    if (savingRef.current) return;
+    setCartItems((items) => savingRef.current ? items : chooseCartItemVariant(items, item, variant));
   };
 
   const cartCount = cartItems.reduce((count, item) => count + item.quantity, 0);
@@ -108,6 +145,9 @@ export const CartProvider = ({ children }) => {
     addItemToCart,
     removeItemFromCart,
     clearItemFromCart,
+    chooseItemVariant,
+    isCheckoutSaving,
+    setIsCheckoutSaving,
     clearCart: (purchasedItems) => setCartItems((items) => (
       !purchasedItems || items === purchasedItems ? [] : items
     )),

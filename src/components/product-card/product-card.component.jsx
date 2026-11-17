@@ -1,10 +1,10 @@
-import { useContext } from "react";
+import { useId } from "react";
 import { Link } from "react-router-dom";
 
-import { CartContext } from "../../contexts/cart.context";
 import { catalogPhoto } from "../../utils/catalog/catalog-image";
 import { categoryLabel, formatPrice, isSameTabLinkClick, productPath } from "../../utils/catalog/catalog.utils";
 import CatalogImage from "../catalog-image/catalog-image.component";
+import WishlistButton from "../wishlist-button/wishlist-button.component";
 
 import "./product-card.styles.scss";
 
@@ -12,10 +12,11 @@ const cardPhotoSizes = "(max-width: 700px) 46vw, (max-width: 850px) 30vw, (max-w
 
 const ProductCard = ({ product, category = product.category, catalogReturn, rememberCatalogPosition }) => {
   const { name, price } = product;
-  const { addItemToCart } = useContext(CartContext);
+  const nameId = useId();
 
   return (
     <article className="product-card">
+      <WishlistButton product={product} className="product-card__wishlist" />
       <Link
         className="product-card__link"
         to={productPath(product)}
@@ -34,19 +35,23 @@ const ProductCard = ({ product, category = product.category, catalogReturn, reme
         </div>
         {category && <span className="product-card__category">{categoryLabel(category)}</span>}
         <div className="product-card__info">
-          <span className="product-card__name">{name}</span>
+          <span id={nameId} className="product-card__name">{name}</span>
           <span className="product-card__price">{formatPrice(price)}</span>
         </div>
       </Link>
-      <button
+      <Link
         className="product-card__add"
-        type="button"
-        aria-label={`Add to bag, ${name}`}
-        onClick={() => addItemToCart(product)}
+        to={productPath(product)}
+        state={catalogReturn ? { catalogReturn } : undefined}
+        aria-label="Choose options"
+        aria-describedby={nameId}
+        onClick={(event) => {
+          if (rememberCatalogPosition && isSameTabLinkClick(event)) rememberCatalogPosition();
+        }}
       >
         <span className="product-card__plus" aria-hidden="true" />
-        Add to bag
-      </button>
+        Choose options
+      </Link>
     </article>
   );
 };

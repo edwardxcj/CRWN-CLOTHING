@@ -17,7 +17,8 @@ const isDemoOrderItem = (item) => Boolean(
   (typeof item.id === "string" || Number.isFinite(item.id)) &&
   typeof item.name === "string" &&
   Number.isFinite(item.price) && item.price >= 0 &&
-  Number.isSafeInteger(item.quantity) && item.quantity > 0
+  Number.isSafeInteger(item.quantity) && item.quantity > 0 &&
+  [item.variantKey, item.size, item.color].every((value) => value === undefined || (typeof value === "string" && value.length > 0 && value.length <= 120))
 );
 
 const isDemoOrder = (order) => Boolean(
@@ -29,7 +30,12 @@ const isDemoOrder = (order) => Boolean(
   Number.isFinite(order.total) && order.total >= 0
 );
 
-const copyOrderItems = (items) => items.map(({ id, name, price, quantity }) => ({ id, name, price, quantity }));
+const copyOrderItems = (items) => items.map(({ id, name, price, quantity, variantKey, size, color }) => ({
+  id, name, price, quantity,
+  ...(variantKey ? { variantKey } : {}),
+  ...(size ? { size } : {}),
+  ...(color ? { color } : {}),
+}));
 
 export const readDemoOrder = (order, id) => {
   if (!isDemoOrder(order) || order.id !== id) return null;
