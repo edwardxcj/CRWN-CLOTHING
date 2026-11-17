@@ -6,6 +6,7 @@ import ProductDetails from "../../components/product-details/product-details.com
 import { CartContext } from "../../contexts/cart.context";
 import { CategoriesContext } from "../../contexts/categories.context";
 import { catalogProducts, categoryLabel, isSameTabLinkClick } from "../../utils/catalog/catalog.utils";
+import { getProductOptions } from "../../utils/catalog/product-variants";
 
 import "./shop.styles.scss";
 
@@ -45,13 +46,36 @@ const searchWords = (text) =>
     .toLowerCase()
     .match(/[\p{L}\p{M}\p{N}]+/gu) ?? [];
 
-const filterCatalog = (products, category, query, sort) => {
+const filterKeys = ["min", "max", "size", "color", "brand", "inStock"];
+const selectedValues = (params, name) => [...new Set(params.getAll(name).filter(Boolean))];
+const priceFilter = (value) => {
+  if (value === null || !/^\d+(?:\.\d{1,2})?$/.test(value)) return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : null;
+};
+
+const filterCatalog = (products, category, query, sort, params) => {
   const terms = searchWords(query);
   if (query && terms.length === 0) return [];
+  const sizes = selectedValues(params, "size");
+  const colors = selectedValues(params, "color");
+  const brands = selectedValues(params, "brand");
+  const minimum = priceFilter(params.get("min"));
+  const maximum = priceFilter(params.get("max"));
+  const inStock = params.get("inStock") === "1";
 
   return products
     .filter((product) => {
       if (category && product.category !== category) return false;
+      if (minimum !== null && product.price < minimum) return false;
+      if (maximum !== null && product.price > maximum) return false;
+      const options = getProductOptions(product);
+      if (brands.length && !brands.includes(options.brand)) return false;
+      if ((sizes.length || colors.length || inStock) && !options.variants.some((variant) => (
+        (!sizes.length || sizes.includes(variant.size)) &&
+        (!colors.length || colors.includes(variant.colorValue)) &&
+        (!inStock || variant.stock > 0)
+      ))) return false;
       if (terms.length === 0) return true;
 
       const nameWords = searchWords(product.name);
@@ -71,17 +95,27 @@ const filterCatalog = (products, category, query, sort) => {
     .sort(sortOptions[sort].compare);
 };
 
-const ShopBreadcrumbs = ({ category, productName, search }) => (
+const sameCatalogPath = (first, second) => first?.replace(/\/$/, "") === second;
+
+const ShopBreadcrumbs = ({ category, productName, search, catalogReturn, onReturn }) => (
   <nav className="shop-breadcrumbs" aria-label="Breadcrumb">
     <ol>
       <li><Link to="/">Home</Link></li>
       <li>
-        {category || search ? <Link to="/shop">Shop</Link> : <span aria-current="page">Shop</span>}
+        {category || search ? (
+          <Link
+            to={sameCatalogPath(catalogReturn?.pathname, "/shop") ? catalogReturn : "/shop"}
+            onClick={sameCatalogPath(catalogReturn?.pathname, "/shop") ? onReturn : undefined}
+          >Shop</Link>
+        ) : <span aria-current="page">Shop</span>}
       </li>
       {category && (
         <li>
           {productName || search ? (
-            <Link to={shopPath(category)}>{categoryLabel(category)}</Link>
+            <Link
+              to={sameCatalogPath(catalogReturn?.pathname, shopPath(category)) ? catalogReturn : { pathname: shopPath(category), search: catalogReturn?.search }}
+              onClick={sameCatalogPath(catalogReturn?.pathname, shopPath(category)) ? onReturn : undefined}
+            >{categoryLabel(category)}</Link>
           ) : (
             <span aria-current="page">{categoryLabel(category)}</span>
           )}
@@ -92,6 +126,100 @@ const ShopBreadcrumbs = ({ category, productName, search }) => (
     </ol>
   </nav>
 );
+
+const CatalogFilters = ({ products, params, onChange, onToggle, onClear }) => {
+  const options = products.map(getProductOptions);
+  const sizeOrder = ["XS", "S", "M", "L", "XL", "US 6", "US 7", "US 8", "US 9", "US 10", "US 11", "US 12", "One size", "S/M", "L/XL"];
+  const sizes = [...new Set(options.flatMap((option) => option.sizes))]
+    .sort((first, second) => sizeOrder.indexOf(first) - sizeOrder.indexOf(second));
+  const colors = new Map(options.flatMap((option) => option.colors).map((color) => [color.value, color.name]));
+  const brands = [...new Set(options.map((option) => option.brand))].sort();
+  const count = filterKeys.reduce((sum, key) => sum + selectedValues(params, key).length, 0);
+  const minimum = priceFilter(params.get("min"));
+  const maximum = priceFilter(params.get("max"));
+  const rangeError = minimum !== null && maximum !== null && minimum > maximum;
+  const invalidPrice = ["min", "max"].some((key) => params.get(key) && priceFilter(params.get(key)) === null);
+  const priceError = invalidPrice ? "Enter a price of zero or more, with up to two decimal places."
+    : rangeError ? "The maximum price must be at least the minimum." : "";
+  const checkbox = (name, value, label) => (
+    <label className="catalog-filters__choice" key={value}>
+      <input type="checkbox" name={name} checked={params.getAll(name).includes(value)} onChange={() => onToggle(name, value)} />
+      <span>{label}</span>
+    </label>
+  );
+
+  return (
+    <details className="catalog-filters">
+      <summary>
+        Filters{count > 0 ? ` (${count})` : ""}
+        <span aria-hidden="true">+</span>
+      </summary>
+      <div className="catalog-filters__body">
+        <fieldset>
+          <legend>Price · USD</legend>
+          <div className="catalog-filters__price">
+            {[["min", "From", "Minimum"], ["max", "To", "Maximum"]].map(([name, label, accessibleLabel]) => (
+              <label key={name}>
+                {label}
+                <input
+                  aria-label={`${accessibleLabel} price in USD`}
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={params.get(name) ?? ""}
+                  onChange={(event) => onChange(name, event.target.value)}
+                  aria-invalid={Boolean(priceError) || undefined}
+                  aria-describedby={priceError ? "price-filter-error" : undefined}
+                />
+              </label>
+            ))}
+          </div>
+          {priceError && <p id="price-filter-error" className="catalog-filters__error" role="alert">{priceError}</p>}
+        </fieldset>
+        <fieldset>
+          <legend>Size</legend>
+          <div className="catalog-filters__choices">{sizes.map((size) => checkbox("size", size, size))}</div>
+        </fieldset>
+        <fieldset>
+          <legend>Colour</legend>
+          <div className="catalog-filters__choices">{Array.from(colors, ([value, name]) => checkbox("color", value, name))}</div>
+        </fieldset>
+        <fieldset>
+          <legend>Brand</legend>
+          <div className="catalog-filters__choices">{brands.map((brand) => checkbox("brand", brand, brand))}</div>
+        </fieldset>
+        <div className="catalog-filters__availability">
+          <label className="catalog-filters__stock">
+            <input type="checkbox" checked={params.get("inStock") === "1"} onChange={(event) => onChange("inStock", event.target.checked ? "1" : "")} />
+            In stock only
+          </label>
+          {count > 0 && <button className="store-text-link" type="button" onClick={onClear}>Clear filters</button>}
+        </div>
+      </div>
+    </details>
+  );
+};
+
+const ActiveFilters = ({ params, onRemove, onClear, colorNames }) => {
+  const labels = { size: "Size", color: "Colour", brand: "Brand", min: "From", max: "To", q: "Search", inStock: "Availability" };
+  const active = ["q", ...filterKeys].flatMap((key) => selectedValues(params, key).map((value) => ({ key, value })));
+  if (!active.length) return null;
+
+  return (
+    <div className="catalog-active-filters" aria-label="Active filters">
+      {active.map(({ key, value }) => {
+        const label = key === "inStock" ? "In stock only" : `${labels[key]}: ${key === "color" ? colorNames.get(value) ?? value : ["min", "max"].includes(key) ? `$${value}` : value}`;
+        return (
+          <button key={`${key}-${value}`} type="button" onClick={() => onRemove(key, value)} aria-label={`Remove ${label} filter`}>
+            {label}<span aria-hidden="true">×</span>
+          </button>
+        );
+      })}
+      <button className="catalog-active-filters__clear" type="button" onClick={onClear}>Clear all</button>
+    </div>
+  );
+};
 
 const CatalogNotice = ({
   title,
@@ -124,13 +252,43 @@ const CatalogListing = () => {
     ...availableCategories.filter((key) => !categoryOrder.includes(key)),
   ];
   const knownCategory = !category || categories.includes(category);
-  const products = filterCatalog(catalogProducts(categoriesMap), category, query, sort);
+  const allProducts = catalogProducts(categoriesMap);
+  const products = filterCatalog(allProducts, category, query, sort, searchParams);
+  const filterCount = filterKeys.reduce((count, key) => count + searchParams.getAll(key).filter(Boolean).length, 0);
   const title = query ? "Search results" : category ? categoryLabel(category) : "Shop all";
   const description = query
     ? `“${query}”`
     : categoryOrder.includes(category) && collectionCopy[category];
-  const clearSearchParams = new URLSearchParams(searchParams);
-  clearSearchParams.delete("q");
+
+  const updateFilter = (name, value) => {
+    const next = new URLSearchParams(searchParams);
+    next.delete(name);
+    if (value) next.set(name, value);
+    setSearchParams(next, { replace: true });
+  };
+
+  const toggleFilter = (name, value) => {
+    const next = new URLSearchParams(searchParams);
+    const selected = selectedValues(next, name);
+    const values = selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value];
+    next.delete(name);
+    values.forEach((item) => next.append(name, item));
+    setSearchParams(next, { replace: true });
+  };
+
+  const removeFilter = (name, value) => {
+    const next = new URLSearchParams(searchParams);
+    const remaining = next.getAll(name).filter((item) => item !== value);
+    next.delete(name);
+    remaining.forEach((item) => next.append(name, item));
+    setSearchParams(next, { replace: true });
+  };
+
+  const clearFilters = (includeSearch = false) => {
+    const next = new URLSearchParams(searchParams);
+    [...filterKeys, ...(includeSearch ? ["q"] : [])].forEach((key) => next.delete(key));
+    setSearchParams(next, { replace: true });
+  };
 
   const changeSort = (event) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -162,6 +320,9 @@ const CatalogListing = () => {
           ))}
         </nav>
 
+        <CatalogFilters products={allProducts} params={searchParams} onChange={updateFilter} onToggle={toggleFilter} onClear={() => clearFilters()} />
+        <ActiveFilters params={searchParams} colorNames={new Map(allProducts.flatMap((product) => getProductOptions(product).colors).map((color) => [color.value, color.name]))} onRemove={removeFilter} onClear={() => clearFilters(true)} />
+
         <div className="shop-catalog__toolbar">
           <p aria-live="polite">{products.length} {products.length === 1 ? "product" : "products"}</p>
           <label className="shop-catalog__sort">
@@ -187,13 +348,12 @@ const CatalogListing = () => {
           </div>
         ) : !knownCategory && catalogLoading ? (
           <p className="catalog-loading" role="status">Loading collection…</p>
-        ) : query ? (
-          <CatalogNotice
-            title="No matching products"
-            description="Try a different search or browse the collection."
-            to={{ pathname: shopPath(knownCategory ? category : undefined), search: clearSearchParams.toString() }}
-            action="Clear search"
-          />
+        ) : query || filterCount ? (
+          <div className="catalog-notice">
+            <h2>No matching products</h2>
+            <p>Try a wider price range or remove some filters.</p>
+            <button type="button" className="store-button" onClick={() => clearFilters(true)}>Clear search and filters</button>
+          </div>
         ) : (
           <CatalogNotice
             title={knownCategory ? "This collection is empty" : "Collection not found"}
@@ -253,7 +413,7 @@ const ProductDetail = () => {
 
   return (
     <section className="container shop-detail">
-      <ShopBreadcrumbs category={category} productName={name} />
+      <ShopBreadcrumbs category={category} productName={name} catalogReturn={hasCatalogReturn ? backTo : undefined} onReturn={returnToCatalog} />
       <ProductDetails
         product={product}
         onAddToCart={addItemToCart}

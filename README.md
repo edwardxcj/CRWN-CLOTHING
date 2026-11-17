@@ -8,8 +8,9 @@ CRWN Clothing is a responsive fashion storefront built with React and Firebase. 
 
 ## Features
 
-- Browse by category, search by product name, sort results, and open shareable product pages. Returning to the catalog restores your search, filters, and position.
-- Add products to a shopping bag, adjust quantities, and keep the bag across refreshes in the same browser.
+- Browse by category, search by product name, and combine price, size, colour, brand and availability filters in shareable URLs. Returning to the catalog restores your search, filters, and position.
+- Choose a size and pictured colour before adding a product. Demonstration stock limits available sizes and quantities. The shopping bag and demo receipt keep each selected variant separately, and the bag persists in the same browser.
+- Save products to a wishlist that syncs across devices through the signed-in account.
 - Try checkout with a preset test card. The confirmation includes a demo order reference, item details, and a total. Signed-in shoppers can reopen receipts from any device using the same account. Open the account center on your original browser to sync demo orders previously saved there while signed in. Guest receipts stay in their original browser. The demo makes no charges or real orders.
 - Sign in with Google or email and password. In the account center, edit your display name and set an avatar with an HTTPS image link. The sign-in email is read-only.
 

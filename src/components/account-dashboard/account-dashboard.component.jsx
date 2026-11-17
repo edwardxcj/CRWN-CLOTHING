@@ -185,6 +185,11 @@ const AccountDashboard = ({
           </div>
 
           <nav className="account-dashboard__shortcuts" aria-label="Shopping shortcuts">
+            <Link to="/wishlist">
+              <StoreIcon name="heart" size={18} />
+              Wishlist
+              <StoreIcon name="arrow" size={15} />
+            </Link>
             <a href="#demo-orders">
               <StoreIcon name="card" size={18} />
               Demo orders

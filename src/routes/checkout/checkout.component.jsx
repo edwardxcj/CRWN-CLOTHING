@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { CartContext } from "../../contexts/cart.context";
 import { UserContext } from "../../contexts/user.context";
 import { formatPrice } from "../../utils/catalog/catalog.utils";
+import { getCartItemKey, getCartItemError } from "../../utils/catalog/product-variants";
 import {
   loadAccountDemoOrder,
   saveAccountDemoOrder,
@@ -37,8 +38,8 @@ const DemoReceipt = ({ order, signedIn }) => (
     <h2 className="checkout__items-heading">Items in this order</h2>
     <ul className="checkout__receipt-items">
       {order.items.map((item) => (
-        <li key={item.id}>
-          <span>{item.name}</span>
+        <li key={getCartItemKey(item)}>
+          <span>{item.name}{item.size && item.color ? ` · ${item.color} / ${item.size}` : ""}</span>
           <span>{item.quantity} × {formatPrice(item.price)}</span>
         </li>
       ))}
@@ -57,7 +58,7 @@ const DemoReceipt = ({ order, signedIn }) => (
 );
 
 const Checkout = () => {
-  const { cartItems, cartCount, cartTotal, clearCart } = useContext(CartContext);
+  const { cartItems, cartCount, cartTotal, clearCart, setIsCheckoutSaving } = useContext(CartContext);
   const { currentUser, isAuthReady } = useContext(UserContext);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -74,6 +75,7 @@ const Checkout = () => {
   const userId = currentUser?.uid;
   const receiptId = searchParams.get("receipt");
   const receiptRequested = receiptId !== null;
+  const bagNeedsAttention = cartItems.some((item) => Boolean(getCartItemError(item)));
   const accountReceiptKey = receiptRequested && isAuthReady && userId
     ? JSON.stringify([userId, receiptId, receiptAttempt])
     : null;
@@ -118,10 +120,11 @@ const Checkout = () => {
   }, [cartItems.length, receiptRequested, receiptId, receiptLoading]);
 
   const simulatePayment = async () => {
-    if (!isAuthReady || !cartCount || receiptRequested || savingPayment.current || paidCart.current === cartItems) return;
+    if (!isAuthReady || !cartCount || bagNeedsAttention || receiptRequested || savingPayment.current || paidCart.current === cartItems) return;
 
     setPaymentError("");
     savingPayment.current = true;
+    setIsCheckoutSaving(true);
     let order;
     try {
       if (userId) {
@@ -140,6 +143,7 @@ const Checkout = () => {
       return;
     } finally {
       savingPayment.current = false;
+      setIsCheckoutSaving(false);
       if (userId && isMounted.current) setIsSaving(false);
     }
 
@@ -200,7 +204,7 @@ const Checkout = () => {
             </h2>
             <ul className="checkout__items">
               {cartItems.map((item) => (
-                <CheckoutItem key={item.id} cartItem={item} />
+                <CheckoutItem key={getCartItemKey(item)} cartItem={item} />
               ))}
             </ul>
           </section>
@@ -218,7 +222,8 @@ const Checkout = () => {
               </div>
             </div>
             {paymentError && <p className="checkout__payment-error" role="alert">{paymentError}</p>}
-            <button className="store-button" type="button" onClick={simulatePayment} disabled={!isAuthReady || isSaving}>
+            {bagNeedsAttention && <p className="checkout__payment-error" role="status">Choose the missing options or remove unavailable items to continue.</p>}
+            <button className="store-button" type="button" onClick={simulatePayment} disabled={!isAuthReady || isSaving || bagNeedsAttention}>
               {isSaving ? "Saving demo order…" : isAuthReady ? "Simulate payment" : "Preparing checkout…"} <StoreIcon name="arrow" size={17} />
             </button>
           </aside>

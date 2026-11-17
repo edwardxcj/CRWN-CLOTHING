@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { CartContext } from "../../contexts/cart.context";
 import { formatPrice } from "../../utils/catalog/catalog.utils";
+import { getCartItemKey } from "../../utils/catalog/product-variants";
 import CheckoutItem from "../checkout-item/checkout-item.component";
 import StoreIcon from "../store-icon/store-icon";
 
@@ -68,7 +69,7 @@ const CartDropdown = () => {
             <ul className="bag-drawer__items">
               {cartItems.map((item) => (
                 <CheckoutItem
-                  key={item.id}
+                  key={getCartItemKey(item)}
                   cartItem={item}
                   compact
                   onNavigate={closeDrawer}

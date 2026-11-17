@@ -21,7 +21,7 @@ afterEach(() => jest.restoreAllMocks());
 test("an unconfirmed account save preserves the bag and retries the same order", async () => {
   const cartKey = "crwn-shopping-bag";
   const userId = "retry-shopper";
-  const savedBag = JSON.stringify([{ id: 12, name: "Black Converse", price: 110, quantity: 2 }]);
+  const savedBag = JSON.stringify([{ id: 12, name: "Black Converse", price: 110, quantity: 2, variantKey: "12::black::US 6", size: "US 6", color: "Black" }]);
   window.localStorage.setItem(cartKey, savedBag);
 
   saveAccountDemoOrder
@@ -41,9 +41,12 @@ test("an unconfirmed account save preserves the bag and retries the same order",
 
   fireEvent.click(screen.getByRole("button", { name: "Simulate payment" }));
   expect(screen.getByRole("button", { name: "Saving demo order…" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Increase quantity for Black Converse, Black, US 6" })).toBeDisabled();
+  expect(screen.getByLabelText("Size for Black Converse, US 6")).toBeDisabled();
   expect(window.localStorage.getItem(cartKey)).toBe(savedBag);
   expect(await screen.findByRole("alert")).toHaveTextContent("Your bag is still here.");
   expect(window.localStorage.getItem(cartKey)).toBe(savedBag);
+  expect(screen.getByRole("button", { name: "Increase quantity for Black Converse, Black, US 6" })).toBeEnabled();
 
   fireEvent.click(screen.getByRole("button", { name: "Simulate payment" }));
   expect(await screen.findByRole("heading", { name: "Demo payment successful" })).toBeInTheDocument();

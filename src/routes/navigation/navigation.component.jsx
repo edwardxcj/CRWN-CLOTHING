@@ -92,6 +92,7 @@ const SiteFooter = ({ signedIn, openBag }) => (
         <nav aria-label="Account footer" className="site-footer__links">
           <h2 className="eyebrow">Your CRWN</h2>
           <Link to="/auth">{signedIn ? "My account" : "Sign in"}</Link>
+          <Link to="/wishlist">Wishlist</Link>
           <button type="button" onClick={openBag}>Shopping bag</button>
         </nav>
       </div>
@@ -160,6 +161,7 @@ const Navigation = () => {
               <StoreIcon name="search" />
             </button>
             <Link to="/auth" className="header-icon site-header__account" aria-label={currentUser ? "My account" : "Sign in"}><StoreIcon name="user" /></Link>
+            <Link to="/wishlist" className="header-icon" aria-label="Wishlist"><StoreIcon name="heart" /></Link>
             <button type="button" className="header-icon header-icon--bag" aria-label={`Shopping bag, ${cartCount} ${cartCount === 1 ? "item" : "items"}`} aria-haspopup="dialog" aria-controls="shopping-bag" onClick={openBag}>
               <StoreIcon name="bag" />
               <span className="header-bag-count" aria-hidden="true">{cartCount}</span>
@@ -178,6 +180,7 @@ const Navigation = () => {
           <nav aria-label="Mobile navigation">
             <ShopNav onSelect={() => menuRef.current.close()} />
             <Link to="/auth" onClick={() => menuRef.current.close()}>{currentUser ? "My account" : "Sign in"}</Link>
+            <Link to="/wishlist" onClick={() => menuRef.current.close()}>Wishlist</Link>
           </nav>
         </div>
       </dialog>

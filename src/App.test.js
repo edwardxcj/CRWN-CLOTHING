@@ -73,7 +73,7 @@ test("sorting an existing category keeps the selected collection", () => {
 test("demo payment confirms the bag total and clears the saved bag", () => {
   const key = "crwn-shopping-bag";
   window.localStorage.setItem(key, JSON.stringify([
-    { id: 12, name: "Black Converse", price: 110, quantity: 2 },
+    { id: 12, name: "Black Converse", price: 110, quantity: 2, variantKey: "12::black::US 6", size: "US 6", color: "Black" },
   ]));
 
   const { unmount } = openStore("/checkout");
@@ -112,7 +112,7 @@ test("a signed-in customer can reopen their demo receipt with fresh browser stor
     </UserContext.Provider>
   );
   window.localStorage.setItem("crwn-shopping-bag", JSON.stringify([
-    { id: 12, name: "Black Converse", price: 110, quantity: 2 },
+    { id: 12, name: "Black Converse", price: 110, quantity: 2, variantKey: "12::black::US 6", size: "US 6", color: "Black" },
   ]));
 
   const checkout = openStore("/checkout", signedInApp("demo-shopper-1"));
@@ -125,7 +125,7 @@ test("a signed-in customer can reopen their demo receipt with fresh browser stor
   const receipt = await screen.findByRole("link", { name: /View receipt for DEMO-/ });
   const receiptUrl = receipt.getAttribute("href");
   fireEvent.click(receipt);
-  expect(await screen.findByText("Black Converse")).toBeInTheDocument();
+  expect(await screen.findByText("Black Converse · Black / US 6")).toBeInTheDocument();
   expect(screen.getByText(/\$220\.00/)).toBeInTheDocument();
   account.unmount();
 

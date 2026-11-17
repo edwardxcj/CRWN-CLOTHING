@@ -1,5 +1,5 @@
-import { useContext, useState } from "react";
-import { Link } from "react-router-dom";
+import { useContext, useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import SignUpForm from "../../components/sign-up-form/sign-up-form.component";
 import SignInForm from "../../components/sign-in-form/sign-in-form.component";
@@ -15,6 +15,15 @@ const Authentication = () => {
   const [accountError, setAccountError] = useState("");
   const { currentUser, isAuthReady, fallbackDisplayName, saveProfile } = useContext(UserContext);
   const isSigningIn = mode === "sign-in";
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const returnTo = searchParams.get("returnTo");
+
+  useEffect(() => {
+    if (currentUser && pending !== "create-account" && (returnTo === "/wishlist" || /^\/shop\/product\/[0-9]+$/.test(returnTo ?? ""))) {
+      navigate(returnTo, { replace: true });
+    }
+  }, [currentUser, pending, returnTo, navigate]);
 
   const reportProfileError = () => {
     setAccountError("Your account is active, but we couldn't save your name.");

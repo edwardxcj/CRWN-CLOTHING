@@ -8,6 +8,7 @@ const paths = {
   close: <path d="m6 6 12 12M18 6 6 18" />,
   card: <><rect x="3" y="5.5" width="18" height="13" rx="2" /><path d="M3 10h18M6 15h4" /></>,
   check: <path d="m5 12 4 4L19 6" />,
+  heart: <path d="M20.8 4.7a5.2 5.2 0 0 0-7.3 0L12 6.2l-1.5-1.5a5.2 5.2 0 0 0-7.3 7.3L12 21l8.8-9a5.2 5.2 0 0 0 0-7.3Z" />,
   crown: <><path d="m3 7 5 4 4-7 4 7 5-4-2 10H5L3 7ZM6 20h12" /></>,
 };
 

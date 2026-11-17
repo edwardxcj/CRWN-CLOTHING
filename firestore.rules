@@ -29,6 +29,17 @@ service cloud.firestore {
         allow get, list: if isOwner(uid);
         allow create: if isOwner(uid) && isDemoOrder(orderId, request.resource.data);
       }
+
+      match /wishlist/{productId} {
+        allow get, list, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.keys().hasAll(['productId', 'savedAt'])
+          && request.resource.data.keys().hasOnly(['productId', 'savedAt'])
+          && request.resource.data.productId is int
+          && request.resource.data.productId >= 1 && request.resource.data.productId <= 35
+          && productId == string(request.resource.data.productId)
+          && request.resource.data.savedAt == request.time;
+      }
     }
   }
 }

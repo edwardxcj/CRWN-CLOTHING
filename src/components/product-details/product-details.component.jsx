@@ -1,9 +1,12 @@
-import { useId, useRef, useState } from "react";
+import { useContext, useEffect, useId, useRef, useState } from "react";
 
 import CatalogImage from "../catalog-image/catalog-image.component";
 import StoreIcon from "../store-icon/store-icon";
+import WishlistButton from "../wishlist-button/wishlist-button.component";
+import { CartContext } from "../../contexts/cart.context";
 import { catalogPhoto } from "../../utils/catalog/catalog-image";
 import { formatPrice } from "../../utils/catalog/catalog.utils";
+import { getCartItemKey, getProductOptions, selectedVariantItem } from "../../utils/catalog/product-variants";
 import { getProductDetailCopy } from "./product-details.copy";
 
 import "./product-details.styles.scss";
@@ -84,8 +87,19 @@ const ProductPhoto = ({ photo, name }) => {
 
 const ProductDetails = ({ product, onAddToCart, backLink }) => {
   const { name, price } = product;
+  const { cartItems, isCheckoutSaving } = useContext(CartContext);
+  const [size, setSize] = useState("");
+  const options = getProductOptions(product);
+  const selectedVariant = options.variants.find((variant) => variant.size === size);
+  const inBag = selectedVariant
+    ? cartItems.find((item) => getCartItemKey(item) === selectedVariant.key)?.quantity || 0
+    : 0;
+  const hasStock = options.variants.some((variant) => variant.stock > 0);
+  const canAdd = selectedVariant?.stock > inBag && !isCheckoutSaving;
   const photo = catalogPhoto(product);
   const { description, details, sizing } = getProductDetailCopy(product);
+
+  useEffect(() => { setSize(""); }, [product.id]);
 
   return (
     <div className="product-details">
@@ -95,15 +109,54 @@ const ProductDetails = ({ product, onAddToCart, backLink }) => {
         <p className="product-details__price">{formatPrice(price)}</p>
         {description && <p className="product-details__description">{description}</p>}
 
+        <div className="product-details__options">
+          <fieldset className="product-details__colour-options">
+            <legend>Colour</legend>
+            {options.colors.map((color) => (
+              <label key={color.value}>
+                <input type="radio" name={`colour-${product.id}`} value={color.value} checked readOnly />
+                <span className="product-details__swatch" style={{ backgroundColor: color.swatch }} aria-hidden="true" />
+                {color.name}
+              </label>
+            ))}
+          </fieldset>
+          <fieldset className="product-details__size-options" disabled={isCheckoutSaving}>
+            <legend>Size</legend>
+            <div>
+              {options.variants.map((variant) => (
+                <label key={variant.key} className={variant.stock === 0 ? "is-unavailable" : ""}>
+                  <input
+                    type="radio"
+                    name={`size-${product.id}`}
+                    value={variant.size}
+                    checked={size === variant.size}
+                    disabled={variant.stock === 0}
+                    onChange={() => setSize(variant.size)}
+                    aria-label={`${variant.size}${variant.stock === 0 ? " — out of stock" : ""}`}
+                  />
+                  <span>{variant.size}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <p className="product-details__availability" role="status">
+            {!hasStock ? "Out of demo stock" : selectedVariant
+              ? `${selectedVariant.stock} available in demo stock${inBag ? ` · ${inBag} in your bag` : ""}`
+              : "Choose a size to see demo availability."}
+          </p>
+        </div>
+
         <div className="product-details__actions">
           <button
             type="button"
             className="store-button product-details__add"
-            onClick={() => onAddToCart(product)}
+            disabled={!canAdd}
+            onClick={() => onAddToCart(selectedVariantItem(product, selectedVariant))}
           >
-            Add to bag
+            {!hasStock ? "Out of stock" : selectedVariant && inBag >= selectedVariant.stock ? "Demo stock limit reached" : "Add to bag"}
             <StoreIcon name="bag" size={18} />
           </button>
+          <WishlistButton product={product} />
           {backLink}
         </div>
 
