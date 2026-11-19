@@ -3,7 +3,13 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
-const { fetchCatalogOverrides, loadCatalogOverrides, exportPages } = require("../scripts/export-pages.cjs");
+const { fetchCatalogOverrides, loadCatalogOverrides, exportPages, loadBundledCatalog } = require("../scripts/export-pages.cjs");
+
+test("bundled catalog loads independently of the package module type", async () => {
+  const catalog = await loadBundledCatalog(path.resolve(__dirname, ".."));
+  assert.equal(catalog.length, 5);
+  assert.equal(catalog.flatMap((category) => category.items).length, 35);
+});
 
 const field = (value) => typeof value === "boolean" ? { booleanValue: value } : typeof value === "number" ? { doubleValue: value } : typeof value === "string" ? { stringValue: value } : Array.isArray(value) ? { arrayValue: { values: value.map(field) } } : { mapValue: { fields: Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, field(entry)])) } };
 const document = (productId, extra = {}) => ({ name: `projects/project/databases/(default)/documents/catalogOverrides/${productId}`, fields: Object.fromEntries(Object.entries({ productId, name: "Updated product", description: "Updated detail", price: 123.5, active: true, images: ["https://images.example.test/product.webp"], stock: { M: 2 }, ...extra }).map(([key, value]) => [key, field(value)])) });

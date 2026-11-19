@@ -1,6 +1,5 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
-const { pathToFileURL } = require("node:url");
 
 const site = "https://crownclothings.com";
 const catalogEndpoint = "https://firestore.googleapis.com/v1/projects/crwn-clothing-db-207f6/databases/(default)/documents/catalogOverrides";
@@ -103,11 +102,18 @@ async function exportPages(root, catalog, overrides) {
 
 async function main() {
   const root = path.resolve(__dirname, "..");
-  const { default: catalog } = await import(pathToFileURL(path.join(root, "src/shop-data.js")));
+  const catalog = await loadBundledCatalog(root);
   const overrides = await loadCatalogOverrides(root);
   const pages = await exportPages(root, catalog, overrides);
   console.log(`Exported ${pages.length} route-specific share pages and sitemap using the public catalog snapshot.`);
 }
 
-module.exports = { decodeFirestoreValue, fetchCatalogOverrides, loadCatalogOverrides, exportPages };
+async function loadBundledCatalog(root) {
+  // This standalone data module also loads on Netlify's Node 18, which does not
+  // infer ES modules from .js files in a CommonJS package.
+  const source = await fs.readFile(path.join(root, "src/shop-data.js"));
+  return (await import(`data:text/javascript;base64,${source.toString("base64")}`)).default;
+}
+
+module.exports = { decodeFirestoreValue, fetchCatalogOverrides, loadCatalogOverrides, exportPages, loadBundledCatalog };
 if (require.main === module) main().catch((error) => { console.error(error); process.exitCode = 1; });
