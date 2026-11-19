@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import ProductCard from "../../components/product-card/product-card.component";
 import StoreIcon from "../../components/store-icon/store-icon";
 import { CategoriesContext } from "../../contexts/categories.context";
+import RecentlyViewed from "../../components/recently-viewed/recently-viewed.component";
+import { catalogProducts } from "../../utils/catalog/catalog.utils";
 
 import "./home.styles.scss";
 
@@ -97,6 +99,7 @@ const Home = () => {
           </div>
         </section>
       )}
+      <div className="container"><RecentlyViewed products={catalogProducts(categoriesMap)} /></div>
     </div>
   );
 };

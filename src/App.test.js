@@ -1,9 +1,14 @@
+import { useContext, useState } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import App from "./App";
-import { CartProvider } from "./contexts/cart.context";
+import { CartContext, CartProvider } from "./contexts/cart.context";
 import { UserContext, UserProvider } from "./contexts/user.context";
+import { CategoriesContext } from "./contexts/categories.context";
+import { loadAddressBook } from "./utils/addresses/addresses.utils";
+import { loadOrderStates } from "./utils/demo-orders/order-center.utils";
+import { loadUploadedAvatar, saveUploadedAvatar } from "./utils/profile/profile.utils";
 import {
   loadAccountDemoOrder,
   loadAccountDemoOrders,
@@ -23,15 +28,60 @@ jest.mock("./utils/firebase/firebase.utils", () => ({
   signOutUser: jest.fn(),
 }));
 
+jest.mock("./utils/admin/catalog-admin.utils", () => ({
+  subscribeCatalogOverrides: (change) => { change({}, { ready: true }); return () => {}; },
+  isCatalogAdmin: () => false,
+}));
+
 jest.mock("./utils/demo-orders/account-demo-orders.utils", () => ({
   loadAccountDemoOrder: jest.fn(),
   loadAccountDemoOrders: jest.fn(),
   saveAccountDemoOrder: jest.fn(),
 }));
 
+jest.mock("./utils/demo-orders/order-center.utils", () => ({
+  ...jest.requireActual("./utils/demo-orders/order-center.utils"),
+  loadOrderStates: jest.fn().mockResolvedValue({}),
+}));
+jest.mock("./utils/addresses/addresses.utils", () => ({
+  ...jest.requireActual("./utils/addresses/addresses.utils"),
+  loadAddressBook: jest.fn().mockResolvedValue({ addresses: [], defaultAddressId: "" }),
+}));
+jest.mock("./utils/profile/profile.utils", () => ({
+  ...jest.requireActual("./utils/profile/profile.utils"),
+  loadUploadedAvatar: jest.fn().mockResolvedValue(""),
+  saveUploadedAvatar: jest.fn().mockResolvedValue(undefined),
+}));
+
+const fillDelivery = () => {
+  for (const [name, value] of [["Full name", "Test shopper"], ["Street address", "1 Test Street"], ["City", "Sydney"], ["Postal code", "2000"], ["Country", "Australia"]]) {
+    fireEvent.change(screen.getByLabelText(name), { target: { value } });
+  }
+};
+
+const AccountCartHarness = ({ uid, children, initialItems = [] }) => {
+  const [items, setItems] = useState(initialItems);
+  return <CartContext.Provider value={{
+    cartItems: items, cartCount: items.reduce((sum, item) => sum + item.quantity, 0),
+    cartTotal: items.reduce((sum, item) => sum + item.quantity * item.price, 0),
+    isCartOpen: false, setIsCartOpen: () => {}, isCartReady: true,
+    cartSyncStatus: "ready", setIsCheckoutSaving: () => {},
+    completeAccountCheckout: async (order) => { await saveAccountDemoOrder(order, uid); setItems([]); },
+  }}>{children}</CartContext.Provider>;
+};
+
+const ReadyCatalogHarness = ({ children }) => {
+  const catalog = useContext(CategoriesContext);
+  return <CategoriesContext.Provider value={{ ...catalog, catalogReady: true }}>{children}</CategoriesContext.Provider>;
+};
+
 beforeEach(() => {
   window.localStorage.clear();
   loadAccountDemoOrders.mockResolvedValue([]);
+  loadAddressBook.mockResolvedValue({ addresses: [], defaultAddressId: "" });
+  loadOrderStates.mockResolvedValue({});
+  loadUploadedAvatar.mockResolvedValue("");
+  saveUploadedAvatar.mockResolvedValue(undefined);
   jest.spyOn(window, "scrollTo").mockImplementation(() => {});
 });
 
@@ -44,7 +94,7 @@ const openStore = (url, app = <App />) => render(
     initialEntries={[url]}
     future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
   >
-    <CartProvider>{app}</CartProvider>
+    <ReadyCatalogHarness><CartProvider>{app}</CartProvider></ReadyCatalogHarness>
   </MemoryRouter>
 );
 
@@ -56,7 +106,14 @@ test("a shared search URL leads to the matching product detail", () => {
   fireEvent.click(screen.getByRole("link", { name: /Black Converse/ }));
 
   expect(screen.getByRole("heading", { name: "Black Converse" })).toBeInTheDocument();
+  expect(document.title).toBe("Black Converse | CRWN Clothing");
   expect(screen.getByRole("button", { name: "Add to bag", exact: true })).toBeInTheDocument();
+});
+
+test("an unknown URL has a recovery page", () => {
+  openStore("/a-page-that-does-not-exist");
+  expect(screen.getByRole("heading", { name: "Page not found" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Explore the shop" })).toHaveAttribute("href", "/shop");
 });
 
 test("sorting an existing category keeps the selected collection", () => {
@@ -70,16 +127,17 @@ test("sorting an existing category keeps the selected collection", () => {
   expect(within(products[0]).getByRole("link", { name: /Tan Trench/ })).toBeInTheDocument();
 });
 
-test("demo payment confirms the bag total and clears the saved bag", () => {
+test("demo payment confirms delivery details and clears the saved bag", async () => {
   const key = "crwn-shopping-bag";
   window.localStorage.setItem(key, JSON.stringify([
     { id: 12, name: "Black Converse", price: 110, quantity: 2, variantKey: "12::black::US 6", size: "US 6", color: "Black" },
   ]));
 
   const { unmount } = openStore("/checkout");
+  fillDelivery();
   fireEvent.click(screen.getByRole("button", { name: "Simulate payment" }));
 
-  expect(screen.getByRole("heading", { name: "Demo payment successful" })).toHaveFocus();
+  expect(await screen.findByRole("heading", { name: "Demo payment successful" })).toHaveFocus();
   expect(screen.getByText(/\$220\.00/)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Shopping bag, 0 items" })).toBeInTheDocument();
 
@@ -103,19 +161,20 @@ test("a signed-in customer can reopen their demo receipt with fresh browser stor
     return order?.id === id ? order : null;
   });
 
-  const signedInApp = (uid) => (
+  const signedInApp = (uid, initialItems = []) => (
     <UserContext.Provider value={{
       currentUser: { uid, displayName: "Demo shopper", providerData: [] },
       isAuthReady: true,
     }}>
-      <App />
+      <AccountCartHarness uid={uid} initialItems={initialItems}><App /></AccountCartHarness>
     </UserContext.Provider>
   );
   window.localStorage.setItem("crwn-shopping-bag", JSON.stringify([
     { id: 12, name: "Black Converse", price: 110, quantity: 2, variantKey: "12::black::US 6", size: "US 6", color: "Black" },
   ]));
 
-  const checkout = openStore("/checkout", signedInApp("demo-shopper-1"));
+  const checkout = openStore("/checkout", signedInApp("demo-shopper-1", [{ id: 12, name: "Black Converse", price: 110, quantity: 2, variantKey: "12::black::US 6", size: "US 6", color: "Black" }]));
+  fillDelivery();
   fireEvent.click(screen.getByRole("button", { name: "Simulate payment" }));
   expect(await screen.findByText("Saved to your account. No money was charged.")).toBeInTheDocument();
   checkout.unmount();

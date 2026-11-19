@@ -6,20 +6,90 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    function isCatalogAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email == 'edwardxcj@gmail.com'
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
+    function isAddress(address) {
+      let fields = ['recipient', 'line1', 'line2', 'city', 'region', 'postalCode', 'country', 'phone'];
+      return address is map && address.keys().hasAll(fields) && address.keys().hasOnly(fields.concat(['updatedAt']))
+        && address.recipient is string && address.recipient.size() > 0 && address.recipient.size() <= 100
+        && address.line1 is string && address.line1.size() > 0 && address.line1.size() <= 150
+        && address.line2 is string && address.line2.size() <= 150
+        && address.city is string && address.city.size() > 0 && address.city.size() <= 100
+        && address.region is string && address.region.size() <= 100
+        && address.postalCode is string && address.postalCode.size() > 0 && address.postalCode.size() <= 24
+        && address.country is string && address.country.size() > 0 && address.country.size() <= 80
+        && address.phone is string && address.phone.size() <= 30;
+    }
+
+    function isDelivery(order) {
+      let delivery = order.delivery;
+      return isAddress(order.shippingAddress)
+        && !('updatedAt' in order.shippingAddress) && delivery is map
+        && delivery.keys().hasAll(['method', 'label', 'fee', 'estimate'])
+        && delivery.keys().hasOnly(['method', 'label', 'fee', 'estimate'])
+        && delivery.method in ['standard', 'express']
+        && delivery.fee == (delivery.method == 'express' ? 12 : 0)
+        && delivery.label is string && delivery.label.size() <= 80
+        && delivery.estimate is string && delivery.estimate.size() <= 120;
+    }
+
+    function validStock(stock, size) {
+      return !(size in stock) || (stock[size] is int && stock[size] >= 0 && stock[size] <= 999);
+    }
+
+    function isStock(stock) {
+      return stock is map
+        && stock.keys().hasOnly(['XS','S','M','L','XL','US 6','US 7','US 8','US 9','US 10','US 11','US 12','S/M','L/XL','One size'])
+        && validStock(stock,'XS') && validStock(stock,'S') && validStock(stock,'M')
+        && validStock(stock,'L') && validStock(stock,'XL') && validStock(stock,'US 6')
+        && validStock(stock,'US 7') && validStock(stock,'US 8') && validStock(stock,'US 9')
+        && validStock(stock,'US 10') && validStock(stock,'US 11') && validStock(stock,'US 12')
+        && validStock(stock,'S/M') && validStock(stock,'L/XL') && validStock(stock,'One size');
+    }
+
+    function isImage(images, index) {
+      return images.size() <= index || (images[index] is string && images[index].size() <= 2048 && images[index].matches('^https://[^@ ]+$'));
+    }
+
+    function isCatalogOverride(productId, data) {
+      let fields = ['productId','name','description','price','active','stock','images','updatedAt'];
+      return data.keys().hasAll(fields) && data.keys().hasOnly(fields)
+        && data.productId is int && data.productId >= 1 && data.productId <= 35 && productId == string(data.productId)
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 120
+        && data.description is string && data.description.size() <= 2000
+        && data.price is number && data.price >= 0 && data.price <= 10000
+        && data.active is bool && isStock(data.stock)
+        && data.images is list && data.images.size() <= 6
+        && isImage(data.images,0) && isImage(data.images,1) && isImage(data.images,2)
+        && isImage(data.images,3) && isImage(data.images,4) && isImage(data.images,5)
+        && data.updatedAt == request.time;
+    }
+
     function isDemoOrder(orderId, order) {
       let fields = ['id', 'placedAt', 'items', 'count', 'total'];
-      return order.keys().hasAll(fields) && order.keys().hasOnly(fields)
+      return order.keys().hasAll(fields) && order.keys().hasOnly(fields.concat(['shippingAddress','delivery']))
         && order.id == orderId
         && orderId.matches('^DEMO-([0-9A-F]{4}-){2}[0-9A-F]{4}$')
         && order.placedAt is string
         && order.placedAt.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$')
         && order.count is int && order.count > 0 && order.count <= 9007199254740991
         && order.items is list && order.items.size() > 0 && order.items.size() <= order.count
-        && order.total is number && order.total >= 0 && order.total <= 9007199254740991;
+        && order.total is number && order.total >= 0 && order.total <= 9007199254740991
+        && ((!('shippingAddress' in order) && !('delivery' in order)) || isDelivery(order));
     }
 
     match /categories/{categoryId} {
       allow get, list: if true;
+    }
+
+    match /catalogOverrides/{productId} {
+      allow get, list: if true;
+      allow create, update: if isCatalogAdmin() && isCatalogOverride(productId, request.resource.data);
     }
 
     match /users/{uid} {
@@ -40,6 +110,68 @@ service cloud.firestore {
           && productId == string(request.resource.data.productId)
           && request.resource.data.savedAt == request.time;
       }
+
+      match /cart/{cartId} {
+        allow get: if isOwner(uid) && cartId == 'current';
+        allow create, update: if isOwner(uid) && cartId == 'current'
+          && request.resource.data.keys().hasAll(['items','updatedAt'])
+          && request.resource.data.keys().hasOnly(['items','updatedAt'])
+          && request.resource.data.items is list && request.resource.data.items.size() <= 200
+          && request.resource.data.updatedAt == request.time;
+      }
+
+      match /cartOperations/{operationId} {
+        allow get: if isOwner(uid);
+        allow create: if isOwner(uid) && operationId.size() <= 100
+          && request.resource.data.keys().hasAll(['kind','createdAt'])
+          && request.resource.data.keys().hasOnly(['kind','createdAt'])
+          && request.resource.data.kind in ['add','merge','decrement','remove','choose','checkout','clear']
+          && request.resource.data.createdAt == request.time;
+      }
+
+      match /addresses/{addressId} {
+        allow get, list, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.keys().hasAll(['recipient','line1','line2','city','region','postalCode','country','phone','updatedAt'])
+          && request.resource.data.keys().hasOnly(['recipient','line1','line2','city','region','postalCode','country','phone','updatedAt'])
+          && isAddress(request.resource.data) && request.resource.data.updatedAt == request.time;
+      }
+
+      match /orderStates/{orderId} {
+        allow get, list: if isOwner(uid);
+        allow create: if isOwner(uid) && exists(/databases/$(database)/documents/users/$(uid)/demoOrders/$(orderId))
+          && validOrderState(request.resource.data)
+          && ((request.resource.data.status == 'shipped' && request.resource.data.shippedAt == request.time && request.resource.data.deliveredAt == null && request.resource.data.cancelledAt == null)
+            || (request.resource.data.status == 'cancelled' && request.resource.data.cancelledAt == request.time && request.resource.data.deliveredAt == null && request.resource.data.shippedAt == null));
+        allow update: if isOwner(uid) && validOrderState(request.resource.data)
+          && resource.data.status == 'shipped' && request.resource.data.status == 'delivered'
+          && request.resource.data.shippedAt == resource.data.shippedAt
+          && request.resource.data.deliveredAt == request.time && request.resource.data.cancelledAt == null;
+      }
+
+      match /supportRequests/{requestId} {
+        allow get, list: if isOwner(uid);
+        allow create: if isOwner(uid) && validSupport(requestId, request.resource.data)
+          && ((request.resource.data.type == 'contact' && request.resource.data.orderId == '' && requestId.matches('^SUP-[0-9A-F]{16}$'))
+            || (request.resource.data.type == 'return' && requestId == 'return-' + request.resource.data.orderId
+              && exists(/databases/$(database)/documents/users/$(uid)/demoOrders/$(request.resource.data.orderId))
+              && get(/databases/$(database)/documents/users/$(uid)/orderStates/$(request.resource.data.orderId)).data.status == 'delivered'));
+      }
+    }
+
+    function validOrderState(data) {
+      return data.keys().hasAll(['status','updatedAt','shippedAt','deliveredAt','cancelledAt'])
+        && data.keys().hasOnly(['status','updatedAt','shippedAt','deliveredAt','cancelledAt'])
+        && data.updatedAt == request.time;
+    }
+
+    function validSupport(id, data) {
+      return data.keys().hasAll(['id','orderId','type','subject','message','createdAt','status'])
+        && data.keys().hasOnly(['id','orderId','type','subject','message','createdAt','status'])
+        && data.id == id && data.orderId is string && data.orderId.size() <= 30
+        && data.subject is string && data.subject.size() > 0 && data.subject.size() <= 120
+        && data.message is string && data.message.size() >= 10 && data.message.size() <= 2000
+        && data.createdAt == request.time && data.status == 'submitted';
     }
   }
 }

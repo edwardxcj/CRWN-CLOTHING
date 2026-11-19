@@ -6,11 +6,13 @@ import {
   onAuthStateChangedListener,
   updateUserProfile,
 } from "../utils/firebase/firebase.utils";
+import { loadUploadedAvatar, saveUploadedAvatar } from "../utils/profile/profile.utils";
 
 export const UserContext = createContext({
   currentUser: null,
   isAuthReady: true,
   fallbackDisplayName: "",
+  uploadedAvatar: "",
   saveProfile: async () => { throw new Error("No signed-in user"); },
 });
 
@@ -19,13 +21,18 @@ export const UserProvider = ({ children }) => {
     currentUser: null,
     isAuthReady: false,
     fallbackDisplayName: "",
+    uploadedAvatar: "",
   });
 
   useEffect(() => {
     let active = true;
     const unsubscribe = onAuthStateChangedListener((user) => {
-      setSession({ currentUser: user, isAuthReady: true, fallbackDisplayName: "" });
+      setSession({ currentUser: user, isAuthReady: true, fallbackDisplayName: "", uploadedAvatar: "" });
       if (!user) return;
+
+      loadUploadedAvatar(user.uid).then((uploadedAvatar) => {
+        if (active) setSession((current) => current.currentUser === user ? { ...current, uploadedAvatar } : current);
+      }).catch(() => {});
 
       // Firestore metadata is optional for the Firebase Auth session.
       createUserDocumentFromAuth(user).catch(() => {});
@@ -51,10 +58,13 @@ export const UserProvider = ({ children }) => {
     const user = session.currentUser;
     if (!user) throw new Error("No signed-in user");
 
-    await updateUserProfile(user, profile);
+    const { uploadedAvatar, ...authProfile } = profile;
+    if (uploadedAvatar !== undefined) await saveUploadedAvatar(user.uid, uploadedAvatar);
+    await updateUserProfile(user, authProfile);
     // Firebase updates the existing User object, so refresh the context value.
-    setSession((current) => current.currentUser === user ? { ...current } : current);
-    return { displayName: user.displayName, photoURL: user.photoURL };
+    const avatar = uploadedAvatar === undefined ? session.uploadedAvatar : uploadedAvatar || "";
+    setSession((current) => current.currentUser === user ? { ...current, uploadedAvatar: avatar } : current);
+    return { displayName: user.displayName, photoURL: user.photoURL, uploadedAvatar: avatar };
   };
 
   const value = { ...session, saveProfile };

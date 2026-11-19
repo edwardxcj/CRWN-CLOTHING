@@ -37,10 +37,28 @@ const copyOrderItems = (items) => items.map(({ id, name, price, quantity, varian
   ...(color ? { color } : {}),
 }));
 
+const orderDeliveryFields = (details) => {
+  if (!details) return {};
+  const { address, method, label, fee, estimate } = details;
+  const fields = ["recipient", "line1", "line2", "city", "region", "postalCode", "country", "phone"];
+  if (!address || !["standard", "express"].includes(method) || fee !== (method === "express" ? 12 : 0)
+    || typeof label !== "string" || label.length > 80 || typeof estimate !== "string" || estimate.length > 120
+    || fields.some((key) => typeof address[key] !== "string" || address[key].length > 150)
+    || ["recipient", "line1", "city", "postalCode", "country"].some((key) => !address[key].trim())) throw new Error("Invalid delivery details");
+  return {
+    shippingAddress: Object.fromEntries(fields.map((field) => [field, address[field].trim()])),
+    delivery: { method, label, fee, estimate },
+  };
+};
+
 export const readDemoOrder = (order, id) => {
   if (!isDemoOrder(order) || order.id !== id) return null;
   const { placedAt, items, count, total } = order;
-  return { id, placedAt, items: copyOrderItems(items), count, total };
+  try {
+    const details = order.shippingAddress || order.delivery
+      ? orderDeliveryFields({ address: order.shippingAddress, ...order.delivery }) : {};
+    return { id, placedAt, items: copyOrderItems(items), count, total, ...details };
+  } catch { return null; }
 };
 
 const parseDemoOrder = (stored, id) => {
@@ -51,22 +69,23 @@ const parseDemoOrder = (stored, id) => {
   }
 };
 
-export const buildDemoOrder = (cartItems) => {
+export const buildDemoOrder = (cartItems, deliveryDetails) => {
   const items = copyOrderItems(cartItems);
   const order = {
     id: makeOrderId(),
     placedAt: new Date().toISOString(),
     items,
     count: items.reduce((count, item) => count + item.quantity, 0),
-    total: items.reduce((total, item) => total + item.price * item.quantity, 0),
+    total: items.reduce((total, item) => total + item.price * item.quantity, 0) + (deliveryDetails?.fee || 0),
+    ...orderDeliveryFields(deliveryDetails),
   };
 
   if (!isDemoOrder(order)) throw new Error("Invalid demo order");
   return order;
 };
 
-export const createDemoOrder = (cartItems, userId) => {
-  const order = buildDemoOrder(cartItems);
+export const createDemoOrder = (cartItems, userId, deliveryDetails) => {
+  const order = buildDemoOrder(cartItems, deliveryDetails);
   // One key per order allows separate tabs to add orders without rewriting each other's history.
   const key = `${storagePrefix(userId)}${order.id}`;
   if (window.localStorage.getItem(key) !== null) throw new Error("Demo order reference already used");

@@ -1,0 +1,15 @@
+.checkout-delivery { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+.checkout-delivery h2 { margin: 0 0 1.2rem; font: 400 2rem/1.2 var(--font-display); }
+.checkout-delivery__saved { display: grid; gap: .5rem; margin-bottom: 1rem; font-size: .85rem; }
+.checkout-delivery__saved select { min-width: 0; width: 100%; min-height: 44px; padding: .6rem; border: 1px solid var(--line); background: var(--paper); font: inherit; }
+.checkout-delivery__address { padding: 1rem; border: 1px solid var(--line); background: var(--paper); }
+.checkout-delivery__address p { margin: .6rem 0 0; color: var(--muted); line-height: 1.6; }
+.checkout-delivery__save { display: inline-block; margin-top: 1rem; min-height: 44px; }
+.checkout-delivery__methods { display: grid; gap: .8rem; margin: 1.5rem 0 0; padding: 0; border: 0; }
+.checkout-delivery__methods legend { margin-bottom: .8rem; font-weight: 600; }
+.checkout-delivery__methods label { display: flex; gap: .7rem; align-items: start; padding: .9rem; border: 1px solid var(--line); cursor: pointer; }
+.checkout-delivery__methods label:has(input:checked) { border-color: var(--olive); background: #eeefe7; }
+.checkout-delivery__methods input { margin-top: .25rem; accent-color: var(--olive); }
+.checkout-delivery__methods span { display: grid; gap: .4rem; }
+.checkout-delivery__methods small { color: var(--muted); }
+.checkout-delivery__error { margin-bottom: 1rem; color: #a0382c; }

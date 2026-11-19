@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import DemoOrders from "../demo-orders/demo-orders.component";
 import StoreIcon from "../store-icon/store-icon";
+import AddressBook from "../address-book/address-book.component";
+import { isCatalogAdmin } from "../../utils/admin/catalog-admin.utils";
+import { prepareAvatarFile, validUploadedAvatar } from "../../utils/profile/profile.utils";
 import "./account-dashboard.styles.scss";
 
 const MAX_NAME_LENGTH = 80;
@@ -43,6 +46,7 @@ const AccountDashboard = ({
   onSaveProfile,
   onSignOut,
   fallbackDisplayName = "",
+  uploadedAvatar = "",
   notice = "",
 }) => {
   const { displayName, photoURL, email, providerData = [] } = user;
@@ -73,11 +77,12 @@ const AccountDashboard = ({
   const savedProfile = profileOverride ?? {
     displayName: displayName?.trim() || fallbackDisplayName?.trim() || "",
     photoURL: photoURL ?? null,
+    uploadedAvatar,
   };
   const nameValue = draft?.displayName ?? savedProfile.displayName;
   const photoValue = draft?.photoURL ?? savedProfile.photoURL ?? "";
   const profileName = savedProfile.displayName.trim();
-  const avatarURL = getPhotoURL(savedProfile.photoURL);
+  const avatarURL = validUploadedAvatar(savedProfile.uploadedAvatar) ? savedProfile.uploadedAvatar : getPhotoURL(savedProfile.photoURL);
   const initials = getInitials(profileName || email || "CRWN");
   const signInMethods = [
     ...new Set(providerData.map(({ providerId }) => signInLabels[providerId]).filter(Boolean)),
@@ -97,9 +102,25 @@ const AccountDashboard = ({
 
   const updateDraft = ({ target }) => {
     const { name, value } = target;
-    setDraft((current) => ({ ...current, [name]: value }));
+    setDraft((current) => ({ ...current, [name]: value, ...(name === "photoURL" ? { uploadedAvatar: null } : {}) }));
     setFieldErrors((current) => ({ ...current, [name]: "" }));
     setSaveError("");
+  };
+
+  const choosePhoto = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || busy) return;
+    setPendingAction("photo");
+    setSaveError("");
+    try {
+      const avatar = await prepareAvatarFile(file);
+      setDraft((current) => ({ ...current, uploadedAvatar: avatar }));
+    } catch (error) {
+      setSaveError(error.message || "We couldn’t read this photo. Try another image.");
+    } finally {
+      setPendingAction("");
+      event.target.value = "";
+    }
   };
 
   const saveProfile = async (event) => {
@@ -123,7 +144,8 @@ const AccountDashboard = ({
       return;
     }
 
-    const profile = { displayName: name, photoURL: validatedPhotoURL };
+    const profile = { displayName: name, photoURL: validatedPhotoURL,
+      ...(Object.prototype.hasOwnProperty.call(draft, "uploadedAvatar") ? { uploadedAvatar: draft.uploadedAvatar } : {}) };
     setPendingAction("save");
     setSaveError("");
     try {
@@ -185,6 +207,8 @@ const AccountDashboard = ({
           </div>
 
           <nav className="account-dashboard__shortcuts" aria-label="Shopping shortcuts">
+            <a href="#address-book"><StoreIcon name="bag" size={18} />Addresses<StoreIcon name="arrow" size={15} /></a>
+            {isCatalogAdmin(user) && <Link to="/admin"><StoreIcon name="crown" size={18} />Manage catalog<StoreIcon name="arrow" size={15} /></Link>}
             <Link to="/wishlist">
               <StoreIcon name="heart" size={18} />
               Wishlist
@@ -254,6 +278,13 @@ const AccountDashboard = ({
                 </div>
 
                 <div className="account-dashboard__field">
+                  <label htmlFor="profile-photo-file">Upload profile photo</label>
+                  <input id="profile-photo-file" type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={choosePhoto} />
+                  <p className="account-dashboard__hint">JPG, PNG or WebP, up to 5 MB. Saved to your account.</p>
+                  {validUploadedAvatar(draft?.uploadedAvatar) && <img className="account-dashboard__photo-preview" src={draft.uploadedAvatar} alt="Selected avatar" />}
+                </div>
+
+                <div className="account-dashboard__field">
                   <label htmlFor="profile-photo-url">Profile photo link <span>(optional)</span></label>
                   <input
                     id="profile-photo-url"
@@ -310,6 +341,7 @@ const AccountDashboard = ({
           </section>
 
           <DemoOrders userId={user.uid} className="account-dashboard__panel" />
+          <AddressBook />
 
           <section className="account-dashboard__panel" aria-labelledby="sign-in-details-title">
             <div className="account-dashboard__panel-heading">

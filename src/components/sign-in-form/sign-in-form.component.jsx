@@ -4,6 +4,7 @@ import FormInput from "../form-input/form-input.component";
 import {
   signInWithGooglePopup,
   signInAuthUserWithEmailAndPassword,
+  sendAccountPasswordReset,
 } from "../../utils/firebase/firebase.utils";
 
 import "./sign-in-form.styles.scss";
@@ -26,6 +27,7 @@ const SignInForm = ({ pending, setPending }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [resetSent, setResetSent] = useState(false);
   const isPending = Boolean(pending);
 
   const signIn = async (method) => {
@@ -49,6 +51,26 @@ const SignInForm = ({ pending, setPending }) => {
   const handleSubmit = (event) => {
     event.preventDefault();
     if (!isPending) signIn("email");
+  };
+
+  const resetPassword = async () => {
+    if (isPending) return;
+    setError("");
+    setResetSent(false);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Enter your email address above to request a reset link.");
+      return;
+    }
+    setPending("reset");
+    try {
+      await sendAccountPasswordReset(email);
+      setResetSent(true);
+    } catch (resetError) {
+      if (resetError.code === "auth/user-not-found") setResetSent(true);
+      else setError(credentialErrors[resetError.code] || "We couldn’t send the reset link. Please try again.");
+    } finally {
+      setPending(null);
+    }
   };
 
   return (
@@ -77,6 +99,11 @@ const SignInForm = ({ pending, setPending }) => {
           {error}
         </p>
       )}
+
+      <button className="store-text-link account-forgot" type="button" disabled={isPending} onClick={resetPassword}>
+        {pending === "reset" ? "Sending reset link…" : "Forgot password?"}
+      </button>
+      {resetSent && <p role="status">If this email has a password account, a reset link is on its way. You can also continue with Google.</p>}
 
       <button className="account-action" type="submit" disabled={isPending}>
         {pending === "email" ? "Signing in…" : "Sign in"}

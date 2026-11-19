@@ -13,14 +13,14 @@ const Authentication = () => {
   const [mode, setMode] = useState("sign-in");
   const [pending, setPending] = useState(null);
   const [accountError, setAccountError] = useState("");
-  const { currentUser, isAuthReady, fallbackDisplayName, saveProfile } = useContext(UserContext);
+  const { currentUser, isAuthReady, fallbackDisplayName, uploadedAvatar, saveProfile } = useContext(UserContext);
   const isSigningIn = mode === "sign-in";
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const returnTo = searchParams.get("returnTo");
 
   useEffect(() => {
-    if (currentUser && pending !== "create-account" && (returnTo === "/wishlist" || /^\/shop\/product\/[0-9]+$/.test(returnTo ?? ""))) {
+    if (currentUser && pending !== "create-account" && (["/wishlist", "/admin", "/checkout", "/help"].includes(returnTo) || /^\/(?:shop\/product\/\d+|orders\/DEMO-(?:[0-9A-F]{4}-){2}[0-9A-F]{4})$/.test(returnTo ?? ""))) {
       navigate(returnTo, { replace: true });
     }
   }, [currentUser, pending, returnTo, navigate]);
@@ -49,6 +49,7 @@ const Authentication = () => {
         key={currentUser.uid}
         user={currentUser}
         fallbackDisplayName={fallbackDisplayName}
+        uploadedAvatar={uploadedAvatar}
         notice={accountError}
         onSaveProfile={saveProfile}
         onSignOut={handleSignOut}

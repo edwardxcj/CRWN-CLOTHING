@@ -3,11 +3,11 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { CartContext } from "../../contexts/cart.context";
 import { UserContext } from "../../contexts/user.context";
+import { CategoriesContext } from "../../contexts/categories.context";
 import { formatPrice } from "../../utils/catalog/catalog.utils";
 import { getCartItemKey, getCartItemError } from "../../utils/catalog/product-variants";
 import {
   loadAccountDemoOrder,
-  saveAccountDemoOrder,
 } from "../../utils/demo-orders/account-demo-orders.utils";
 import {
   buildDemoOrder,
@@ -18,6 +18,8 @@ import {
 } from "../../utils/demo-orders/demo-orders.utils";
 import CheckoutItem from "../../components/checkout-item/checkout-item.component";
 import StoreIcon from "../../components/store-icon/store-icon";
+import CheckoutDelivery from "../../components/checkout-delivery/checkout-delivery.component";
+import CartSyncNotice from "../../components/cart-sync-notice/cart-sync-notice.component";
 
 import "./checkout.styles.scss";
 
@@ -44,6 +46,13 @@ const DemoReceipt = ({ order, signedIn }) => (
         </li>
       ))}
     </ul>
+    {order.shippingAddress && <section className="checkout__delivery-receipt">
+      <h2>Delivery details</h2>
+      <p>{order.shippingAddress.recipient}</p>
+      <p>{[order.shippingAddress.line1, order.shippingAddress.line2, order.shippingAddress.city, order.shippingAddress.region, order.shippingAddress.postalCode, order.shippingAddress.country].filter(Boolean).join(", ")}</p>
+      <p>{order.delivery.label} · {order.delivery.estimate}</p>
+      <p>Delivery fee {formatPrice(order.delivery.fee)}</p>
+    </section>}
     <div className="checkout__subtotal">
       <span>Demo total · {order.count} {order.count === 1 ? "item" : "items"}</span>
       <strong>{formatPrice(order.total)} <small>USD</small></strong>
@@ -53,17 +62,20 @@ const DemoReceipt = ({ order, signedIn }) => (
         Continue shopping <StoreIcon name="arrow" size={17} />
       </Link>
       {signedIn && <Link className="store-text-link" to="/auth">My account</Link>}
+      {signedIn && <Link className="store-text-link" to={`/orders/${order.id}`}>Manage order</Link>}
     </div>
   </div>
 );
 
 const Checkout = () => {
-  const { cartItems, cartCount, cartTotal, clearCart, setIsCheckoutSaving } = useContext(CartContext);
+  const { cartItems, cartCount, cartTotal, consumePurchasedItems, completeAccountCheckout, setIsCheckoutSaving, isCartReady } = useContext(CartContext);
+  const { catalogReady, catalogAdminError, retryCatalogOverrides } = useContext(CategoriesContext);
   const { currentUser, isAuthReady } = useContext(UserContext);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [paymentError, setPaymentError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [deliveryDetails, setDeliveryDetails] = useState(null);
   const [accountReceipt, setAccountReceipt] = useState(null);
   const [receiptAttempt, setReceiptAttempt] = useState(0);
   const headingRef = useRef(null);
@@ -120,23 +132,25 @@ const Checkout = () => {
   }, [cartItems.length, receiptRequested, receiptId, receiptLoading]);
 
   const simulatePayment = async () => {
-    if (!isAuthReady || !cartCount || bagNeedsAttention || receiptRequested || savingPayment.current || paidCart.current === cartItems) return;
+    if (!isAuthReady || !isCartReady || !catalogReady || !cartCount || !deliveryDetails || cartItems.some(getCartItemError) || receiptRequested || savingPayment.current || paidCart.current === cartItems) return;
 
     setPaymentError("");
     savingPayment.current = true;
     setIsCheckoutSaving(true);
+    setIsSaving(true);
     let order;
     try {
       if (userId) {
-        setIsSaving(true);
         const pending = pendingPayment.current;
-        order = pending?.items === cartItems && pending.userId === userId
+        const fingerprint = JSON.stringify({ userId, items: cartItems, delivery: deliveryDetails });
+        order = pending?.fingerprint === fingerprint
           ? pending.order
-          : buildDemoOrder(cartItems);
-        pendingPayment.current = { items: cartItems, userId, order };
-        await saveAccountDemoOrder(order, userId);
+          : buildDemoOrder(cartItems, deliveryDetails);
+        pendingPayment.current = { fingerprint, order };
+        await completeAccountCheckout(order);
       } else {
-        order = createDemoOrder(cartItems);
+        order = createDemoOrder(cartItems, undefined, deliveryDetails);
+        await consumePurchasedItems(cartItems, order.id);
       }
     } catch {
       if (isMounted.current) setPaymentError("We couldn’t save the demo order. Your bag is still here. Please try again.");
@@ -144,12 +158,11 @@ const Checkout = () => {
     } finally {
       savingPayment.current = false;
       setIsCheckoutSaving(false);
-      if (userId && isMounted.current) setIsSaving(false);
+      if (isMounted.current) setIsSaving(false);
     }
 
     paidCart.current = cartItems;
     pendingPayment.current = null;
-    clearCart(cartItems);
     if (isMounted.current) navigate(demoReceiptPath(order.id), { replace: true });
   };
 
@@ -167,6 +180,7 @@ const Checkout = () => {
       <h1 id="checkout-title" ref={headingRef} tabIndex={-1}>
         {title}
       </h1>
+      {!receiptRequested && <CartSyncNotice />}
       {receipt ? (
         <DemoReceipt order={receipt} signedIn={Boolean(userId)} />
       ) : receiptRequested ? (
@@ -207,6 +221,7 @@ const Checkout = () => {
                 <CheckoutItem key={getCartItemKey(item)} cartItem={item} />
               ))}
             </ul>
+            <CheckoutDelivery value={deliveryDetails} onChange={setDeliveryDetails} disabled={isSaving} />
           </section>
           <aside className="checkout__summary" aria-labelledby="order-summary">
             <h2 id="order-summary">Order summary</h2>
@@ -214,6 +229,8 @@ const Checkout = () => {
               <span>Subtotal <small>USD</small></span>
               <strong aria-live="polite">{formatPrice(cartTotal)}</strong>
             </div>
+            <div className="checkout__subtotal"><span>Delivery</span><strong>{deliveryDetails ? formatPrice(deliveryDetails.fee) : "Choose delivery"}</strong></div>
+            <div className="checkout__subtotal"><span>Demo total</span><strong>{formatPrice(cartTotal + (deliveryDetails?.fee || 0))}</strong></div>
             <div className="checkout__method">
               <StoreIcon name="card" size={22} />
               <div>
@@ -222,8 +239,12 @@ const Checkout = () => {
               </div>
             </div>
             {paymentError && <p className="checkout__payment-error" role="alert">{paymentError}</p>}
+            {!catalogReady && <div className="checkout__payment-error" role="status">
+              <p>{catalogAdminError ? "We couldn’t verify current prices and stock. Please retry before placing your demo order." : "Checking current prices and stock…"}</p>
+              {catalogAdminError && <button className="store-text-link" type="button" onClick={retryCatalogOverrides}>Retry product check</button>}
+            </div>}
             {bagNeedsAttention && <p className="checkout__payment-error" role="status">Choose the missing options or remove unavailable items to continue.</p>}
-            <button className="store-button" type="button" onClick={simulatePayment} disabled={!isAuthReady || isSaving || bagNeedsAttention}>
+            <button className="store-button" type="button" onClick={simulatePayment} disabled={!isAuthReady || !isCartReady || !catalogReady || isSaving || bagNeedsAttention || !deliveryDetails}>
               {isSaving ? "Saving demo order…" : isAuthReady ? "Simulate payment" : "Preparing checkout…"} <StoreIcon name="arrow" size={17} />
             </button>
           </aside>

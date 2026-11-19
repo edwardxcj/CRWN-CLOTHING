@@ -288,3 +288,13 @@
     margin-top: 1rem;
   }
 }
+
+.product-details__thumbnails { display: flex; gap: .75rem; margin-top: .9rem; overflow-x: auto; padding-bottom: .25rem; }
+.product-details__thumbnails button { flex: 0 0 95px; display: grid; gap: .45rem; border: 1px solid var(--line); padding: .3rem; background: var(--white); color: var(--ink); font: inherit; font-size: .68rem; cursor: pointer; }
+.product-details__thumbnails button[aria-pressed="true"] { border-color: var(--olive); outline: 1px solid var(--olive); }
+.product-details__thumbnails img { width: 100%; height: auto; aspect-ratio: 4/5; object-fit: cover; }
+.product-size-guide__table { max-width: 100%; overflow-x: auto; margin-block: 1rem; }
+.product-size-guide table { width: 100%; border-collapse: collapse; font-size: .76rem; }
+.product-size-guide th, .product-size-guide td { padding: .6rem .4rem; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.product-size-guide caption { text-align: left; line-height: 1.5; margin-bottom: .6rem; color: var(--muted); }
+.product-size-guide .product-size-guide__note { font-size: .75rem; }

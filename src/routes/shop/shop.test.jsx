@@ -88,13 +88,13 @@ test("related products keep the original list return and one-step browser histor
   window.scrollY = 420;
 
   fireEvent.click(screen.getByRole("link", { name: /^Sneakers Nike White AirForce/ }));
-  fireEvent.click(screen.getByRole("link", { name: /^Sneakers Black Converse/ }));
-  expect(screen.getByRole("heading", { name: "Black Converse" })).toBeInTheDocument();
+  fireEvent.click(within(screen.getByRole("region", { name: "More from Sneakers" })).getByRole("link", { name: /^Sneakers Nike Red High Tops/ }));
+  expect(screen.getByRole("heading", { name: "Nike Red High Tops" })).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Browser Back" }));
   expect(screen.getByRole("heading", { name: "Nike White AirForce" })).toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("link", { name: /^Sneakers Black Converse/ }));
+  fireEvent.click(within(screen.getByRole("region", { name: "More from Sneakers" })).getByRole("link", { name: /^Sneakers Nike Red High Tops/ }));
   const returnLink = screen.getByRole("link", { name: "Back to search results" });
   expect(returnLink).toHaveAttribute("href", catalogUrl);
   fireEvent.click(returnLink);

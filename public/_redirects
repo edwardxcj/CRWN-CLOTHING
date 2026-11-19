@@ -1,1 +1,8 @@
-/* /index.html 200
+/shop /index.html 200
+/auth /index.html 200
+/checkout /index.html 200
+/wishlist /index.html 200
+/help /index.html 200
+/admin /index.html 200
+/orders/* /index.html 200
+/* /404.html 404

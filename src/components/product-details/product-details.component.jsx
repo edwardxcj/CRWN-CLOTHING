@@ -4,7 +4,8 @@ import CatalogImage from "../catalog-image/catalog-image.component";
 import StoreIcon from "../store-icon/store-icon";
 import WishlistButton from "../wishlist-button/wishlist-button.component";
 import { CartContext } from "../../contexts/cart.context";
-import { catalogPhoto } from "../../utils/catalog/catalog-image";
+import { catalogGallery } from "../../utils/catalog/catalog-image";
+import ProductSizeGuide from "./product-size-guide.component";
 import { formatPrice } from "../../utils/catalog/catalog.utils";
 import { getCartItemKey, getProductOptions, selectedVariantItem } from "../../utils/catalog/product-variants";
 import { getProductDetailCopy } from "./product-details.copy";
@@ -13,24 +14,14 @@ import "./product-details.styles.scss";
 
 const detailPhotoSizes = "(max-width: 700px) 94vw, (max-width: 1510px) 49vw, 725px";
 
-const ProductPhoto = ({ photo, name }) => {
+const ProductPhoto = ({ photos, name }) => {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [unavailableSource, setUnavailableSource] = useState("");
+  const photo = photos[selectedIndex] || photos[0];
   const dialogId = useId();
   const dialogRef = useRef(null);
   const closeButtonRef = useRef(null);
-  const [unavailable, setUnavailable] = useState(false);
-
-  const photoClass = photo.width
-    ? "product-details__photo product-details__photo--studio"
-    : "product-details__photo";
-
-  if (!photo.src || unavailable) {
-    return (
-      <div className={`${photoClass} product-details__photo--unavailable`}>
-        Image unavailable
-      </div>
-    );
-  }
-
+  const unavailable = !photo?.src || unavailableSource === photo.src;
   const openPhoto = () => {
     dialogRef.current.showModal();
     closeButtonRef.current.focus();
@@ -39,45 +30,30 @@ const ProductPhoto = ({ photo, name }) => {
   return (
     <div className="product-details__gallery">
       <button
-        className={photoClass}
+        className={`product-details__photo product-details__photo--studio${unavailable ? " product-details__photo--unavailable" : ""}`}
         type="button"
         aria-label={`Enlarge photo of ${name}`}
         aria-haspopup="dialog"
         aria-controls={dialogId}
+        disabled={unavailable}
         onClick={openPhoto}
       >
-        <CatalogImage
-          photo={photo}
-          alt={name}
-          sizes={detailPhotoSizes}
-          loading="eager"
-          onUnavailable={() => setUnavailable(true)}
-        />
-        <span className="product-details__enlarge" aria-hidden="true">
-          <StoreIcon name="search" size={16} />
-          Enlarge
-        </span>
+        {unavailable ? "Image unavailable" : <>
+          <CatalogImage photo={photo} alt={name} sizes={detailPhotoSizes} loading="eager" onUnavailable={() => setUnavailableSource(photo.src)} />
+          <span className="product-details__enlarge" aria-hidden="true"><StoreIcon name="search" size={16} />Enlarge</span>
+        </>}
       </button>
-
-      <dialog
-        id={dialogId}
-        ref={dialogRef}
-        className="product-details__viewer"
-        aria-label={`Photo of ${name}`}
-        onClick={(event) => {
-          if (event.target === event.currentTarget) dialogRef.current.close();
-        }}
-      >
+      {photos.length > 1 && <div className="product-details__thumbnails" role="group" aria-label="Product photos">
+        {photos.map((option, index) => <button key={`${option.src}-${index}`} type="button" aria-label={`Show ${option.label.toLowerCase()} of ${name}`} aria-pressed={selectedIndex === index} onClick={() => setSelectedIndex(index)}>
+          <CatalogImage photo={option} alt="" sizes="88px" />
+          <span>{option.label}</span>
+        </button>)}
+      </div>}
+      <dialog id={dialogId} ref={dialogRef} className="product-details__viewer" aria-label={`Photo of ${name}`} onClick={(event) => {
+        if (event.target === event.currentTarget) dialogRef.current.close();
+      }}>
         <div className="product-details__viewer-content">
-          <button
-            className="product-details__close"
-            type="button"
-            ref={closeButtonRef}
-            onClick={() => dialogRef.current.close()}
-          >
-            <StoreIcon name="close" size={20} />
-            Close photo
-          </button>
+          <button className="product-details__close" type="button" ref={closeButtonRef} onClick={() => dialogRef.current.close()}><StoreIcon name="close" size={20} />Close photo</button>
           <CatalogImage photo={photo} alt={name} />
         </div>
       </dialog>
@@ -96,14 +72,14 @@ const ProductDetails = ({ product, onAddToCart, backLink }) => {
     : 0;
   const hasStock = options.variants.some((variant) => variant.stock > 0);
   const canAdd = selectedVariant?.stock > inBag && !isCheckoutSaving;
-  const photo = catalogPhoto(product);
-  const { description, details, sizing } = getProductDetailCopy(product);
+  const photos = catalogGallery(product);
+  const { description, details } = getProductDetailCopy(product);
 
   useEffect(() => { setSize(""); }, [product.id]);
 
   return (
     <div className="product-details">
-      <ProductPhoto key={photo.src || name} photo={photo} name={name} />
+      <ProductPhoto key={product.id} photos={photos} name={name} />
       <div className="product-details__summary">
         <h1>{name}</h1>
         <p className="product-details__price">{formatPrice(price)}</p>
@@ -173,12 +149,8 @@ const ProductDetails = ({ product, onAddToCart, backLink }) => {
           </dl>
         )}
 
-        {sizing && (
-          <details className="product-details__sizing">
-            <summary>Fit &amp; sizing tips</summary>
-            <p>{sizing}</p>
-          </details>
-        )}
+        <ProductSizeGuide product={product} />
+
       </div>
     </div>
   );
