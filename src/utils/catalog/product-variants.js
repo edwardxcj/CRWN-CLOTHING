@@ -1,3 +1,7 @@
+import { getCurrentProduct } from "./catalog-overrides";
+
+export { getCurrentProduct } from "./catalog-overrides";
+
 const productColours = [
   ["Brown", "#654638"], ["Blue", "#315a7a"], ["Brown", "#795c3d"],
   ["Grey", "#9c9b94"], ["Green", "#42583b"], ["Light blue", "#becbd0"],
@@ -30,6 +34,7 @@ export const getProductBrand = (product) => {
 };
 
 export const getProductOptions = (product) => {
+  product = getCurrentProduct(product);
   const id = Number(product.id);
   const colour = productColours[id - 1];
   if (!Number.isInteger(id) || !colour) {
@@ -47,7 +52,9 @@ export const getProductOptions = (product) => {
     color: name,
     colorValue: color.value,
     // The catalog is a demo. Availability is deliberately fixed and reproducible.
-    stock: id === 7 || (sizes.length > 1 && (id + index) % 5 === 0)
+    stock: product.active === false ? 0 : Number.isInteger(product.stockBySize?.[size])
+      ? product.stockBySize[size]
+      : id === 7 || (sizes.length > 1 && (id + index) % 5 === 0)
       ? 0
       : 2 + ((id * 3 + index) % 7),
   }));
@@ -64,6 +71,9 @@ export const getSelectedVariant = (product) => getProductVariants(product).find(
 export const getCartItemKey = (item) => getSelectedVariant(item)?.key || `${item.id}::unselected`;
 
 export const getCartItemError = (item) => {
+  const current = getCurrentProduct(item);
+  if (current.active === false) return `${item.name} is no longer available. Remove it to continue.`;
+  if (current.price !== item.price) return `${item.name} has a new price. Remove it and add it again to continue.`;
   const variants = getProductVariants(item);
   if (!variants.length) return "";
   const variant = getSelectedVariant(item);
@@ -75,7 +85,7 @@ export const getCartItemError = (item) => {
 };
 
 export const selectedVariantItem = (product, variant) => ({
-  ...product,
+  ...getCurrentProduct(product),
   variantKey: variant.key,
   size: variant.size,
   color: variant.color,

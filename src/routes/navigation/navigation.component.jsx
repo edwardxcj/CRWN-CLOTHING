@@ -5,6 +5,7 @@ import CartDropdown from "../../components/cart-dropdown/cart-dropdown.component
 import StoreIcon from "../../components/store-icon/store-icon";
 import { UserContext } from "../../contexts/user.context";
 import { CartContext } from "../../contexts/cart.context";
+import PageMetadata from "../../components/page-metadata/page-metadata.component";
 
 import "./navigation.styles.scss";
 
@@ -93,6 +94,7 @@ const SiteFooter = ({ signedIn, openBag }) => (
           <h2 className="eyebrow">Your CRWN</h2>
           <Link to="/auth">{signedIn ? "My account" : "Sign in"}</Link>
           <Link to="/wishlist">Wishlist</Link>
+          <Link to="/help">Help &amp; returns</Link>
           <button type="button" onClick={openBag}>Shopping bag</button>
         </nav>
       </div>
@@ -142,6 +144,7 @@ const Navigation = () => {
   return (
     <>
       <a className="skip-link" href="#main-content">Skip to content</a>
+      <PageMetadata />
       <header className="site-header" id="top">
         <div className="site-header__strip">
           <StoreIcon name="crown" size={14} />
@@ -181,6 +184,7 @@ const Navigation = () => {
             <ShopNav onSelect={() => menuRef.current.close()} />
             <Link to="/auth" onClick={() => menuRef.current.close()}>{currentUser ? "My account" : "Sign in"}</Link>
             <Link to="/wishlist" onClick={() => menuRef.current.close()}>Wishlist</Link>
+            <Link to="/help" onClick={() => menuRef.current.close()}>Help &amp; returns</Link>
           </nav>
         </div>
       </dialog>

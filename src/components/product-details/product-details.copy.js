@@ -1,3 +1,6 @@
+import SHOP_DATA from "../../shop-data";
+import { getProductOptions } from "../../utils/catalog/product-variants";
+
 const productDescriptions = new Map([
   ["Brown Brim", "A deep brown hat with a pinched crown and a wide brim. The darker band gives the shape a subtle contrast."],
   ["Blue Beanie", "A blue rib-knit beanie with a tall crown. Wear it with a neutral coat or let the colour stand out against another bright layer."],
@@ -44,6 +47,16 @@ const visualDetails = new Map([
   ["Striped Sweater", { colour: "Brown and white", style: "High-neck striped sweater" }],
 ]);
 
+const productStyles = [
+  "Pinched crown with a wide brim and dark band", "Tall ribbed beanie", "Western crown with an upturned brim", "Pinched crown with a narrow band", "Ribbed beanie with a folded cuff",
+  "Curved cap with a palm-tree motif", "Ribbed beanie with a folded cuff", "Flat-peak cap with contrast lettering", "Plain flat-peak cap",
+  "Low-top with contrast sole blocks", "Patterned low-top with a sculpted sole", "Tonal lace-up high-top", "White lace-up high-top", "Contrast-panel lace-up high-top", "Contrast-panel lace-up high-top", "Angular-panel high-top", "Lace-up ankle boot",
+  "Dark button-front trucker jacket", "Blue button-front trucker jacket", "Washed-grey button-front jacket", "Zip-front jacket with a contrast collar", "Belted longline wrap coat",
+  "Narrow-strap cropped tank", "Off-shoulder floral blouse", "Short-sleeve floral wrap dress", "Polka-dot dress with a tied waist", "Broad-stripe high-neck sweater", "Cropped hoodie and matching trousers", "Sleeveless blouse with openwork shoulder panels",
+  "Hooded camouflage puffer vest", "Short-sleeve floral button-front shirt", "Contrast-sleeve raglan top", "Short-sleeve printed button-front shirt", "Denim-look button-front shirt with chest pockets", "Short-sleeve pin-dot button-front shirt",
+];
+const originalNames = new Map(SHOP_DATA.flatMap(({ items }) => items.map(({ id, name }) => [Number(id), name])));
+
 const sizingTips = new Map([
   ["hats", "Measure around your head just above your eyebrows and ears. Compare that measurement with the size guide for the style you intend to wear."],
   ["sneakers", "Measure both feet in the socks you would wear with the shoes. Use the longer measurement when comparing it with the brand’s size chart."],
@@ -55,7 +68,10 @@ const sizingTips = new Map([
 export const getProductDetailCopy = (product) => ({
   description: typeof product.description === "string" && product.description.trim()
     ? product.description.trim()
-    : productDescriptions.get(product.name),
-  details: visualDetails.get(product.name),
+    : productDescriptions.get(originalNames.get(Number(product.id)) || product.name),
+  details: {
+    colour: getProductOptions(product).colors[0]?.name || visualDetails.get(product.name)?.colour || "See product photo",
+    style: productStyles[Number(product.id) - 1] || visualDetails.get(product.name)?.style || "See product photo",
+  },
   sizing: sizingTips.get(product.category),
 });

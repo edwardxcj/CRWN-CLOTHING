@@ -189,3 +189,5 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.checkout__delivery-receipt { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+.checkout__delivery-receipt h2 { font-size: 1.1rem; margin-bottom: .7rem; }

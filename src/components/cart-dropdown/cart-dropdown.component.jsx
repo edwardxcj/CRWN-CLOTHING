@@ -6,6 +6,7 @@ import { formatPrice } from "../../utils/catalog/catalog.utils";
 import { getCartItemKey } from "../../utils/catalog/product-variants";
 import CheckoutItem from "../checkout-item/checkout-item.component";
 import StoreIcon from "../store-icon/store-icon";
+import CartSyncNotice from "../cart-sync-notice/cart-sync-notice.component";
 
 import "./cart-dropdown.styles.scss";
 
@@ -63,6 +64,7 @@ const CartDropdown = () => {
             <StoreIcon name="close" />
           </button>
         </header>
+        <CartSyncNotice />
 
         {cartItems.length > 0 ? (
           <>

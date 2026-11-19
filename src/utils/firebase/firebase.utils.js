@@ -9,17 +9,18 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 
 import {
   getFirestore,
   doc,
   getDoc,
-  setDoc,
   collection,
   writeBatch,
   query,
   getDocs,
+  runTransaction,
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -84,23 +85,17 @@ export const createUserDocumentFromAuth = async (
 
   const userDocRef = doc(db, "users", userAuth.uid);
 
-  const userSnapshot = await getDoc(userDocRef);
-
-  if (!userSnapshot.exists()) {
-    const { displayName, email } = userAuth;
-    const createdAt = new Date();
-
-    try {
-      await setDoc(userDocRef, {
-        displayName,
-        email,
-        createdAt,
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(userDocRef);
+    if (!snapshot.exists()) {
+      transaction.set(userDocRef, {
+        displayName: userAuth.displayName,
+        email: userAuth.email,
+        createdAt: new Date(),
         ...additionalInformation,
       });
-    } catch (error) {
-      console.log("error creating the user", error.message);
     }
-  }
+  });
 
   return userDocRef;
 };
@@ -130,6 +125,8 @@ export const signInAuthUserWithEmailAndPassword = async (email, password) => {
 };
 
 export const signOutUser = async () => await signOut(auth);
+
+export const sendAccountPasswordReset = (email) => sendPasswordResetEmail(auth, email.trim());
 
 export const onAuthStateChangedListener = (callback) =>
   onAuthStateChanged(auth, callback);

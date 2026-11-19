@@ -1,3 +1,5 @@
+import { getCurrentProduct } from "./catalog-overrides";
+
 const photoSlugs = new Map([
   ["1", "brown-brim"],
   ["2", "blue-beanie"],
@@ -38,7 +40,9 @@ const photoSlugs = new Map([
 
 const catalogMedia = `${process.env.PUBLIC_URL}/media/catalog`;
 
-export const catalogPhoto = ({ id, imageUrl }) => {
+export const catalogPhoto = (product) => {
+  const { id, imageUrl, images } = getCurrentProduct(product);
+  if (Array.isArray(images) && images.length > 0) return { src: images[0], width: 1120, height: 1400, fallback: imageUrl };
   // A saved bag may still have the original external URL, or no URL at all.
   const slug = photoSlugs.get(String(id));
   if (!slug) return { src: imageUrl };
@@ -53,4 +57,18 @@ export const catalogPhoto = ({ id, imageUrl }) => {
     height: 1400,
     fallback: `${catalogMedia}/${slug}.webp`,
   };
+};
+
+export const catalogGallery = (product) => {
+  product = getCurrentProduct(product);
+  const cover = catalogPhoto(product);
+  if (Array.isArray(product.images) && product.images.length > 0) {
+    return product.images.map((src, index) => ({ src, width: 1120, height: 1400, label: index === 0 ? "Campaign view" : `Product view ${index + 1}` }));
+  }
+  const slug = photoSlugs.get(String(product.id));
+  if (!slug) return [{ ...cover, label: "Product view" }];
+  return [
+    { ...cover, label: "Campaign view" },
+    { src: `${catalogMedia}/detail/${slug}-detail.webp`, width: 1120, height: 1400, fallback: cover.src, label: "Detail view" },
+  ];
 };

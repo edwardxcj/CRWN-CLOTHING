@@ -2,13 +2,18 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import { loadAccountDemoOrders } from "../../utils/demo-orders/account-demo-orders.utils";
+import { loadOrderStates } from "../../utils/demo-orders/order-center.utils";
 import DemoOrders from "./demo-orders.component";
 
 jest.mock("../../utils/demo-orders/account-demo-orders.utils", () => ({
   loadAccountDemoOrders: jest.fn(),
 }));
+jest.mock("../../utils/demo-orders/order-center.utils", () => ({
+  loadOrderStates: jest.fn(async () => ({})),
+  orderStatusLabels: { processing: "Processing", shipped: "Demo dispatched", delivered: "Demo delivered", cancelled: "Cancelled" },
+}));
 
-const order = (id) => ({ id, placedAt: "2026-11-11T12:00:00.000Z", count: 1, total: 160 });
+const order = (id) => ({ id, placedAt: "2026-11-11T12:00:00.000Z", count: 1, total: 160, items: [{ id: 13, name: "Nike White AirForce", price: 160, quantity: 1 }] });
 
 const history = (userId) => (
   <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -16,7 +21,10 @@ const history = (userId) => (
   </MemoryRouter>
 );
 
-beforeEach(() => loadAccountDemoOrders.mockReset());
+beforeEach(() => {
+  loadAccountDemoOrders.mockReset();
+  loadOrderStates.mockResolvedValue({});
+});
 
 test("a late order history response cannot replace another account's orders", async () => {
   let resolveFirstAccount;

@@ -3,6 +3,8 @@ import { Link, Route, Routes, useLocation, useNavigate, useOutletContext, usePar
 
 import ProductCard from "../../components/product-card/product-card.component";
 import ProductDetails from "../../components/product-details/product-details.component";
+import RecentlyViewed from "../../components/recently-viewed/recently-viewed.component";
+import { recommendProducts } from "../../utils/catalog/product-discovery";
 import { CartContext } from "../../contexts/cart.context";
 import { CategoriesContext } from "../../contexts/categories.context";
 import { catalogProducts, categoryLabel, isSameTabLinkClick } from "../../utils/catalog/catalog.utils";
@@ -407,9 +409,7 @@ const ProductDetail = () => {
     navigate(-catalogReturn.steps);
   };
 
-  const relatedProducts = products
-    .filter((item) => item.category === category && String(item.id) !== productId)
-    .slice(0, 4);
+  const relatedProducts = recommendProducts(products, product);
 
   return (
     <section className="container shop-detail">
@@ -433,6 +433,7 @@ const ProductDetail = () => {
           </div>
         </section>
       )}
+      <RecentlyViewed products={products} currentId={product.id} catalogReturn={relatedCatalogReturn} />
     </section>
   );
 };

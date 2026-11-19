@@ -5,6 +5,8 @@ import { CartContext, CartProvider } from "./cart.context";
 import { getCartItemError, getProductVariants, selectedVariantItem } from "../utils/catalog/product-variants";
 import { buildDemoOrder, readDemoOrder } from "../utils/demo-orders/demo-orders.utils";
 
+jest.mock("../utils/firebase/firebase.utils", () => ({}));
+
 const product = { id: 13, name: "Nike White AirForce", price: 160 };
 const available = getProductVariants(product).filter((variant) => variant.stock > 0);
 const first = selectedVariantItem(product, available[0]);

@@ -4,6 +4,7 @@ import { getProductVariants } from "../../utils/catalog/product-variants";
 import ProductDetails from "./product-details.component";
 
 jest.mock("../wishlist-button/wishlist-button.component", () => () => <button>Save product</button>);
+jest.mock("../../utils/firebase/firebase.utils", () => ({}));
 
 test("a shopper must choose an available size and the selected color and size accompany the product", () => {
   const product = { id: 13, name: "Nike White AirForce", price: 160, category: "sneakers" };
@@ -24,4 +25,13 @@ test("a shopper must choose an available size and the selected color and size ac
     size: available.size,
     variantKey: available.key,
   });
+});
+
+test("the product gallery switches from the campaign photo to the detail view", () => {
+  const product = { id: 13, name: "Nike White AirForce", price: 160, category: "sneakers" };
+  render(<ProductDetails product={product} onAddToCart={jest.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Show detail view of Nike White AirForce" }));
+  expect(screen.getByRole("img", { name: product.name })).toHaveAttribute("src", "/media/catalog/detail/white-nike-high-tops-detail.webp");
+  fireEvent.click(screen.getByRole("button", { name: "Show campaign view of Nike White AirForce" }));
+  expect(screen.getByRole("img", { name: product.name })).toHaveAttribute("src", "/media/catalog/studio/white-nike-high-tops.webp");
 });

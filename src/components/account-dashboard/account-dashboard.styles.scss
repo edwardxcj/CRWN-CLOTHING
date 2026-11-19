@@ -231,3 +231,4 @@
 @media (max-width: 460px) {
   .account-dashboard__details { grid-template-columns: minmax(0, 1fr); }
 }
+.account-dashboard__photo-preview { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
